@@ -2,6 +2,7 @@
 
 import os, csv, gzip, json
 import pandas as pd
+import random
 
 #TODO: remove hardcoded paths, put in parameter file
 data_dir="/Users/davej/data/AVSC/"
@@ -30,9 +31,24 @@ def read_files_pandas(name):
     filename=data_files(name)
     return pd.read_csv(filename)
 
-def stream_data(name):
-    '''Return generator/stream to data as dictionaries'''
+def stream_data(name,frac=1.0):
+    '''Return generator/stream to data as dictionaries
+       If frac < 0, it will sample a random fraction of customers 
+    '''
     #TODO: handle gzip 
     filename=data_files(name)
-    return csv.DictReader(open(filename,'rU'))
+    for line in csv.DictReader(open(filename,'rU')):
+        if 'id' in line:
+            if hash_frac(line['id'],frac=frac) : yield line
+        else:
+            yield line
+
+def hash_frac(input,frac=1.0):
+    '''Useful utility for sampling some fraction of things deterministically'''
+    if frac == 1.0 : return True
+    if frac == 0.0 : return False
+    h=abs(hash(str(input)))
+    random.seed(h)
+    r=random.random()
+    return r < frac
 
