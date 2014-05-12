@@ -12,6 +12,8 @@ def data_files(name=None):
     ''' returns a dictionary with full path to data files. Or if name is given, just
         return that one'''
     data_dir=PARS['data_dir']
+    if data_dir[-1] != '/' : data_dir+='/'
+    
     files= {"offers": data_dir+"offers.csv",
             "history": data_dir+"trainHistory.csv",
             "history_test": data_dir+"testHistory.csv",
