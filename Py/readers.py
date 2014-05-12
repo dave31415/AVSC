@@ -1,15 +1,12 @@
 #readers for avsc
 
-import os, csv, gzip, json
+import os, csv, json
 import pandas as pd
 import random
 
-#TODO: remove hardcoded paths, put in parameter file
-data_dir="/Users/davej/data/AVSC/"
-
 #Read json data from Parameter file, for now, just need data_dir
 JSONDC=json.JSONDecoder()
-PARS=JSONDC.decode(open('../PARS.txt','rU').read())
+PARS=JSONDC.decode(open('../PARS.json','rU').read())
 
 def data_files(name=None):
     ''' returns a dictionary with full path to data files. Or if name is given, just
@@ -19,7 +16,7 @@ def data_files(name=None):
             "history": data_dir+"trainHistory.csv",
             "history_test": data_dir+"testHistory.csv",
             "sample_sub": data_dir+"sampleSubmission.csv",
-            #"transactions_gzip": data_dir+"transactions.csv",
+            "transactions": data_dir+"transactions.csv",
             "leaderboard":data_dir+"leaderboard_May12.csv"
             }	
     for key, file in files.iteritems(): assert(os.path.exists(file))
@@ -35,7 +32,7 @@ def stream_data(name,frac=1.0):
     '''Return generator/stream to data as dictionaries
        If frac < 0, it will sample a random fraction of customers 
     '''
-    #TODO: handle gzip 
+    #TODO: handle gzip?
     filename=data_files(name)
     for line in csv.DictReader(open(filename,'rU')):
         if 'id' in line:
