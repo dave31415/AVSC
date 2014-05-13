@@ -3,6 +3,7 @@
 import os, csv, json
 import pandas as pd
 import random
+from collections import Counter
 
 #Read json data from Parameter file, for now, just need data_dir
 JSONDC=json.JSONDecoder()
@@ -25,17 +26,24 @@ def data_files(name=None):
     if name : return files[name]
     return files  
 
+def split_file_name(name,split_num):
+    return data_files(name).replace('.csv','_'+str(split_num)+'.csv')
+
 def read_files_pandas(name):
     '''read data into pandas data frame'''
     filename=data_files(name)
     return pd.read_csv(filename)
 
-def stream_data(name,frac=1.0):
+def stream_data(name,frac=1.0,split_num=None):
     '''Return generator/stream to data as dictionaries
        If frac < 0, it will sample a random fraction of customers 
     '''
     #TODO: handle gzip?
-    filename=data_files(name)
+    if split_num == None:
+        filename=data_files(name)
+    else :
+        filename=split_file_name(name,split_num)
+    
     for line in csv.DictReader(open(filename,'rU')):
         if 'id' in line:
             if hash_frac(line['id'],frac=frac) : yield line
@@ -71,9 +79,44 @@ def make_customer_offer_lookup(frac=1.0):
         offer_history_dict[cust_id]=offer
     return offer_history_dict
     
-def hunt_for_features(offer_dict,frac=1.0,prompt=True):
+def make_item(offer):
+    #defines an item
+    return offer['category']+'_'+offer['brand']
+    
+def make_naive_bayes_classifier(alpha=5.0,prior_ratio=3.0):
+    alpha=float(alpha)
+    data=data=[v for v in make_customer_offer_lookup().values()]
+    count_repeat=Counter()
+    count_norepeat=Counter()
+    for offer in data:
+        item=make_item(offer)
+        if offer['repeater'] == 't':
+            count_repeat[item]+=1
+        else :
+            count_norepeat[item]+=1
+    #total number of unique keys
+    num_items=len( set(count_repeat.keys()).union(count_norepeat.keys()) )
+    num_repeat=float(sum(count_repeat.values()))
+    num_norepeat=float(sum(count_norepeat.values()))
+    
+    def bayes_classify(x):
+        #takes any structure that can be handed to make_item
+        item=make_item(x)
+        #additive smoothing
+        raw_repeat=count_repeat[item]
+        raw_norepeat=count_norepeat[item]
+        prob_item_given_repeat=(raw_repeat +alpha)/(num_repeat+alpha*num_items)
+        prob_item_given_norepeat=(raw_norepeat +alpha)/(num_norepeat+alpha*num_items)
+        Like_Ratio=prob_item_given_norepeat / prob_item_given_repeat
+        Prob_Ratio=Like_Ratio*prior_ratio
+        prob_repeat_given_item=1.0/(1.0+Prob_Ratio)
+        #print raw_repeat,raw_norepeat, Ratio, prob_repeat_given_item
+        return prob_repeat_given_item
+    return bayes_classify
+    
+def hunt_for_features(offer_dict,frac=1.0,prompt=True,split_num=0):
     #TODO: modifies in place, could be dangerous so change this
-    trans=stream_data('transactions',frac=frac)
+    trans=stream_data('transactions',frac=frac,split_num=split_num)
     bastards=set()
     ids=set()
     for ntran,tran in enumerate(trans):
@@ -146,7 +189,7 @@ def make_small_files_by_cust(name='transactions',ngroups=50,nmax=None):
     #now all file handles are open
     nrow=0
     for row in infile:
-        if nrow % 1000 == 0: print "nrow: %s"%nrow 
+        if nrow % 100000 == 0: print "nrow: %s"%nrow 
         nrow+=1
         #hash on customer id
         hash_integer=abs(hash(str(row['id'])))
@@ -159,28 +202,6 @@ def make_small_files_by_cust(name='transactions',ngroups=50,nmax=None):
             if nrow > nmax: 
                 break
     print 'done'
-  
-def add_to_history_files(name='history'):
-    #Not needed, keep anyway
-    #kinda awkward, is there a better way to get header
-    s=stream_data(name)
-    first=s.next()
-    field_names=first.keys()
-    #start over
-    s=stream_data(name)
-    field_names.append('repeat_shopper')
-    
-    outfile_name=data_files(name).replace('.csv','_mod.csv')
-    outfile=csv.DictWriter(open(outfile_name,'w',),field_names)
-    outfile.writeheader()
-    for line in s:
-        n_repeat=int(line['repeattrips'])
-        if n_repeat >=2 : 
-            line['repeat_shopper']='Yes'
-        else:
-            line['repeat_shopper']='No'
-        outfile.writerow(line)
-    
         
                
     
