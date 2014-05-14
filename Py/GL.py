@@ -1,7 +1,7 @@
 #graphlab
 
 #from readers import *
-from graphlab import recommender, SFrame, aws.set_credentials
+from graphlab import recommender, SFrame, aws
 
 aws.set_credentials('AKIAIWD7RQTJXCCB72BA', 'E0/g0PtP7d9jkjrSyOKmQNpVKXm6FajpF34A55tN')
 
