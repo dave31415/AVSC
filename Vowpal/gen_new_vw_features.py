@@ -13,13 +13,13 @@ More refactoring done
 from datetime import datetime, date
 from collections import defaultdict
 
-loc_offers = "data/offers.csv"
-loc_transactions = "data/transactions.csv"
-loc_train = "data/trainHistory.csv"
-loc_test = "data/testHistory.csv"
-loc_reduced = "data/reduced.csv" 
-loc_out_train = "data/train.vw"
-loc_out_test = "data/test.vw"
+loc_offers = "../data/offers.csv"
+loc_transactions = "../data/transactions.csv"
+loc_train = "../data/trainHistory.csv"
+loc_test = "../data/testHistory.csv"
+loc_reduced = "../data/reduced.csv" 
+loc_out_train = "../data/train.vw"
+loc_out_test = "../data/test.vw"
 
 id_index = 0
 train_repeater_index = 5
@@ -146,6 +146,9 @@ def output_features(features, last_id, out_test, out_train):
 			test = True
 		elif k == "label":
 			outline = str(v) + " '" + last_id + " |f" + outline
+		elif k == "offer_dept":
+			#do nothing
+			outline += ""
 		else:
 			outline += " " + k+":"+str(v) 
 	outline += "\n"
