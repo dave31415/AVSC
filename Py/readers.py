@@ -25,7 +25,7 @@ def data_files(name=None):
             "transactions": data_dir+"transactions.csv",
             "leaderboard":data_dir+"leaderboard_May12.csv"
             }	
-    for key, file in files.iteritems(): assert(os.path.exists(file))
+    #for key, file in files.iteritems(): assert(os.path.exists(file))
     if name : return files[name]
     return files  
 
