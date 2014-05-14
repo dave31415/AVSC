@@ -7,10 +7,10 @@ creds=open('../creds.txt','r').readlines()
 
 aws.set_credentials(creds[0], creds[1])
 
-def test_graphlab():
+def test_graphlab(num_factors=10,reg=0.01):
     ''' test the graphlab install '''
     url='http://s3.amazonaws.com/GraphLab-Datasets/movie_ratings/training_data.csv'    
     data = SFrame(url)
-	
-    mfac = recommender.matrix_factorization.create(data, 'user', 'movie',7, regularizer=0.05)
-                                           
+    mfac = recommender.matrix_factorization.create(data, 'user', 'movie','rating',num_factors, 
+            reg=reg,nmf=True,use_bias=True,holdout_probability=0.3,niter=20)
+    return mfac
