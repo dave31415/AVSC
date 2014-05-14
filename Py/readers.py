@@ -4,6 +4,9 @@ import os, csv, json
 import pandas as pd
 import random
 from collections import Counter
+import numpy as np
+import scipy
+from matplotlib import pylab as plt
 
 #Read json data from Parameter file, for now, just need data_dir
 JSONDC=json.JSONDecoder()
@@ -113,6 +116,40 @@ def make_naive_bayes_classifier(alpha=5.0,prior_ratio=3.0):
         #print raw_repeat,raw_norepeat, Ratio, prob_repeat_given_item
         return prob_repeat_given_item
     return bayes_classify
+    
+def validate_naive_bayes():
+    offers=make_customer_offer_lookup().values()
+    BC=make_naive_bayes_classifier()
+    for offer in offers:
+        prob_offer=BC(offer)
+        offer['prob_repeat']=prob_offer
+    data=[(o['prob_repeat'],int(o['repeater']=='t')) for o in offers]  
+    #sort by decreasing probability
+    data=sorted(data,key=lambda x : -x[0])
+    prob=[d[0] for d in data]
+    index=np.arange(len(prob))
+    true_pos=np.cumsum([d[1] for d in data])
+    #add 1 to below?
+    precision=true_pos/(index+1)
+    n_true=float(true_pos[-1])
+    recall=true_pos/n_true 
+    f_score=2*precision*recall/(precision+recall)       
+    false_pos=index-true_pos
+    real_negative=len(index)-n_true
+    false_positive_rate=false_pos/real_negative
+    #integrate the ROC curve
+    AUROC=scipy.integrate.cumtrapz(recall,false_positive_rate)[-1]
+    plt.plot(false_positive_rate,recall)
+    plt.plot([0,1],[0,1],linestyle='--')
+    plt.title('Naive Bayes AUROC: %0.4f'%AUROC)
+    print "AUROC: %s"%AUROC
+    return (prob,precision,recall,false_positive_rate,AUROC)
+
+def run_naive_bayes_on_test_history():
+    BC=make_naive_bayes_classifier()
+    
+    
+
     
 def hunt_for_features(offer_dict,frac=1.0,prompt=True,split_num=0):
     #TODO: modifies in place, could be dangerous so change this
