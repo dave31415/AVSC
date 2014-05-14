@@ -1,7 +1,9 @@
 #graphlab
 
 #from readers import *
-from graphlab import recommender, SFrame
+from graphlab import recommender, SFrame, aws.set_credentials
+
+aws.set_credentials('AKIAIWD7RQTJXCCB72BA', 'E0/g0PtP7d9jkjrSyOKmQNpVKXm6FajpF34A55tN')
 
 def test_graphlab():
     ''' test the graphlab install '''
