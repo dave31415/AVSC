@@ -62,10 +62,10 @@ def hash_frac(input,frac=1.0):
     r=random.random()
     return r < frac
 
-def make_customer_offer_lookup(frac=1.0):
+def make_customer_offer_lookup(name='history',frac=1.0):
     '''Make a dictionary keyed by cust_id with their offer from history and offer info (joined in)'''
     extra={'n_tot':0,'n_category':0,'n_brand':0,'n_chain':0,'n_company':0}
-    offer_history=stream_data('history',frac=frac)
+    offer_history=stream_data(name,frac=frac)
     offer_info=stream_data('offers',frac=frac)
     offer_dict={}
     for offer in offer_info:
@@ -145,10 +145,18 @@ def validate_naive_bayes():
     print "AUROC: %s"%AUROC
     return (prob,precision,recall,false_positive_rate,AUROC)
 
-def run_naive_bayes_on_test_history():
+def run_naive_bayes_on_test_history(name='history_test'):
     BC=make_naive_bayes_classifier()
-    
-    
+    test_data=make_customer_offer_lookup(name).values()
+    outfile_name=data_files(name).replace('.csv','_submission.csv')
+    #TODO: clobber for now
+    outfile=open(outfile_name,'w')
+    header='id,repeatProbability'
+    outfile.write(header+'\n')
+    for d in test_data:
+        prob=BC(d)
+        outfile.write(str(d['id'])+','+str(prob)+'\n')
+    outfile.close()
 
     
 def hunt_for_features(offer_dict,frac=1.0,prompt=True,split_num=0):
