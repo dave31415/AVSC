@@ -248,7 +248,7 @@ def make_small_files_by_cust(name='transactions',ngroups=50,nmax=None):
                 break
     print 'done'
         
-def numberize(file_name,user_tag='id',item_tag='brand',item_func=None):
+def numberize(file_name='~/data/reduced.v1.csv',user_tag='id',item_tag='brand',item_func=None):
     '''Take a csv file with columns and pick out the users and items and convert them to unique numbers'''
     outfile_name=file_name.replace('.csv','_numbers.csv')
     dictfile_user=file_name.replace('.csv','_dict_user.csv')
