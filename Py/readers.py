@@ -248,9 +248,48 @@ def make_small_files_by_cust(name='transactions',ngroups=50,nmax=None):
                 break
     print 'done'
         
-               
+def numberize(file_name,user_tag='id',item_tag='brand',item_func=None):
+    '''Take a csv file with columns and pick out the users and items and convert them to unique numbers'''
+    outfile_name=file_name.replace('.csv','_numbers.csv')
+    dictfile_user=file_name.replace('.csv','_dict_user.csv')
+    dictfile_item=file_name.replace('.csv','_dict_item.csv')
+    fout=open(outfile_name,'w')
+    fdict_user=open(dictfile_user,'w')
+    fdict_item=open(dictfile_item,'w')
+    s=csv.DictReader(open(file_name,'rU'))   
+    user_dict={}
+    item_dict={}
+    user_num=0
+    item_num=0
+    user_item_list=[]
+    line_num=0
+    for line in s:
+        line_num+=1
+        if line_num % 10000 == 0:
+            print "line num: %s"%line_num
+        user=line[user_tag]
+        if item_func:
+            item=item_func(line)
+        else:
+            item=line[item_tag]
+            
+        if user not in user_dict:
+            user_dict[user]=user_num   
+            dline=str(user)+','+str(user_num)+'\n'
+            fdict_user.write(dline)
+            user_num+=1  
+            
+        if item not in item_dict:
+            item_dict[item]=item_num
+            dline=str(item)+','+str(item_num)+'\n'
+            fdict_item.write(dline)
+            item_num+=1  
+        
+        outline=str(user_dict[user])+','+str(item_dict[item])+'\n'
+        fout.write(outline)
     
-
-
+    fout.close()
+    fdict_user.close()
+    fdict_item.close()  
 
 
