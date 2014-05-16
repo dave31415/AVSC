@@ -10,7 +10,8 @@ def make_mrec_outfile(infile):
     return outfile
 
 def multi_thresh(data,model,thresh_list=None):
-    if thresh_list==None: thresh_list=np.linspace(0.2,0.75,15)
+    import pickle
+    if thresh_list==None: thresh_list=np.linspace(-0.2,1.0,40)
     vals=[]
     print " thresh  precision  recall  fscore"
     print "-----------------------------------------"
@@ -20,6 +21,8 @@ def multi_thresh(data,model,thresh_list=None):
         vals.append(val)
         line="%0.4f  %0.4f  %0.4f  %0.4f)"%(thresh, val['precision'],val['recall'],val['fscore'])
         print line
+    pickle.dump(vals,open('data.pickle','wb'))
+
     return vals
 
 def threshing(M_sparse,U,V,thresh=0.5):
@@ -35,13 +38,47 @@ def threshing(M_sparse,U,V,thresh=0.5):
     assumes M_sparse is a list of (row,col) tupes where the value is 1 , else 0
     U and V are the U-V decomposition via a matrix factorization.
     This should be both memory efficient and fast, thus, allowing for huge data sets.
+    TODO:this needs work
     '''
-    
-    d=len(M_sparse)
-    
+       
+    num_U=U.shape[0]
+    num_V=V.shape[0]
+    num_tot=float(num_U*num_V)
+    num_d=U.shape[1]
+    assert(V.shape[1] == num_d)
+
+    mean_data=len(M_sparse)/num_tot
+    print 'mean data: %s'%mean_data
+
+    sum_cross=0.0
+    for row, col in M_sparse:
+        u=U[row,:]
+        v=V[col,:]
+        sum_cross+= (np.dot(u,v))> thresh
+        
+    x=[d[0] for d in M_sparse]
+    y=[d[1] for d in M_sparse]
+    U_filt=U[x,:]
+    V_filt=V[y,:]
     
 
+    mean_cross=sum_cross/num_tot
+    print 'mean cross: %s'%mean_cross
 
+    sum_model=0.0
+    for i in xrange(num_U):
+        sum_model+=(np.dot(V,U[i,:]) > thresh).sum()
+    sum_cross2=0.0
+    for i in x:
+        sum_cross2+=(np.dot(V_filt,U[i,:]) > thresh).sum()
+    mean_cross=sum_cross2/num_tot
+    print 'mean cross2: %s'%mean_cross2
+        
+
+    mean_model=sum_model/num_tot
+    print 'mean model: %s'%mean_model
+    #return means not sums
+    return (mean_data,mean_model,mean_cross)
 
 def validate_matrices(data,model,thresh=0.5,show=False):
     rms=np.sqrt(((data-model)**2).mean())
@@ -86,11 +123,12 @@ def read_mrec(mrec_file='reduced.v1_numbers_mrec_d5_iter9_reg0.0150.npz'):
     model=mrec.load_recommender(file_name)
     U=model.U
     V=model.V
-    #model_matrix=np.dot(U,VT)
-    #shape=model_matrix.shape
+    model_matrix=np.dot(U,V.transpose())
+    shape=model_matrix.shape
     shape=(U.shape[0],V.shape[0])
     data_matrix=np.ndarray(shape,dtype=int)
     line_num=0
+    #data_list=[]
     for line in open(data_file_name,'r'):
         line_num+=1
         if line_num % 1000000 ==0 : print line_num
@@ -99,6 +137,7 @@ def read_mrec(mrec_file='reduced.v1_numbers_mrec_d5_iter9_reg0.0150.npz'):
         col=int(dat[1])-1
         val=int(float(dat[2]))
         assert(val == 1)
+        #data_list.append((row,col))
         data_matrix[row,col]=val
     return (data_matrix,U,V)
 
