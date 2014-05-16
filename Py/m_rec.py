@@ -1,17 +1,48 @@
+import matplotlib
+matplotlib.use('Agg') # Plots go to files not screen    
+
 from readers import PARS
 import time
 from mrec import load_recommender
 import numpy as np
 import mrec
+import matplotlib.pyplot as plt
 
 def make_mrec_outfile(infile,d,num_iters,reg):
     suffix="_mrec_d%s_iter%s_reg%0.4f.npz"%(d,num_iters,reg)
     outfile = infile.replace('.csv',suffix)
     return outfile
 
-def multi_thresh(data,model,thresh_list=None):
+def recall_precision_plot(thresh,recall,precision,plot_file=None):
+    ep=1e-11
+    prec=np.array(precision)
+    rec=np.array(recall)
+    fscore=2*prec*rec/(prec+rec+ep)
+    fig=plt.figure()
+    plt.plot(thresh,precision,'ro')
+    plt.plot(thresh,recall,'bo')
+    plt.plot(thresh,fscore)
+    plt.legend(['precision','recall','fscore'])
+    
+    if plot_file: 
+        print 'saving plot to: %s'%plot_file
+        fig.savefig(plot_file)
+    else :
+        print 'not plotting to a file'
+        #plt.show()
+        pass
+
+def check_validation(outfile='reduced.v1_numbers_mrec_d5_iter15_reg0.0150.npz'):
+    #outfile without path TODO: fix
+    data,U,V=read_mrec(outfile)
+    model=np.dot(U,V.transpose())
+    plot_file=outfile.replace('.npz','.png')
+    vals=multi_thresh(data,model,plot_file=plot_file)
+    return vals
+
+def multi_thresh(data,model,thresh_list=None,plot_file=None):
     import pickle
-    if thresh_list==None: thresh_list=np.linspace(-0.2,1.0,40)
+    if thresh_list==None: thresh_list=np.linspace(-0.2,1.0,20)
     vals=[]
     print " thresh  precision  recall  fscore"
     print "-----------------------------------------"
@@ -22,7 +53,13 @@ def multi_thresh(data,model,thresh_list=None):
         vals.append(val)
         line="%0.4f  %0.4f  %0.4f  %0.4f)"%(thresh, val['precision'],val['recall'],val['fscore'])
         print line
+    
+    pickle_file=plot_file.replace('.png','.pickle')    
     pickle.dump(vals,open('data.pickle','wb'))
+    thresh=[d['thresh'] for d in vals]
+    precision=[d['precision']for d in vals]
+    recall=[d['recall']for d in vals]
+    recall_precision_plot(thresh,recall,precision,plot_file=plot_file)
 
     return vals
 
@@ -177,9 +214,15 @@ def test_mrec(d=5,num_iters=3,reg=0.015):
     print "saving model"
     save_recommender(model,outfile)
     print "wrote model to: %s"%outfile
-    print "done"
+    print time.time()-start
+
+    print "validating"
+    data,U,V=read_mrec(mrec_file=outfile)
+    plot_file=outfile.replace('.npz','.png')
+    multi_thresh(data,model,thresh_list=None,outfile=plot_file)
     run_time=(time.time()-start)/60.0
     print "runtime: %0.3f minutes"%run_time
+    print 'done'
 
 
 
