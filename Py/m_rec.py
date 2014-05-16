@@ -4,9 +4,9 @@ from mrec import load_recommender
 import numpy as np
 import mrec
 
-def make_mrec_outfile(infile):
+def make_mrec_outfile(infile,d,num_iters,reg):
     suffix="_mrec_d%s_iter%s_reg%0.4f.npz"%(d,num_iters,reg)
-    outfile = filepath.replace('.csv',suffix)
+    outfile = infile.replace('.csv',suffix)
     return outfile
 
 def multi_thresh(data,model,thresh_list=None):
@@ -18,6 +18,7 @@ def multi_thresh(data,model,thresh_list=None):
     for thresh in thresh_list:
         val=validate_matrices(data,model,thresh=thresh)
         val['thresh']=thresh
+
         vals.append(val)
         line="%0.4f  %0.4f  %0.4f  %0.4f)"%(thresh, val['precision'],val['recall'],val['fscore'])
         print line
@@ -156,7 +157,7 @@ def test_mrec(d=5,num_iters=3,reg=0.015):
     #data may just be ones
     filepath = PARS['data_dir']+"reduced.v1_numbers.csv"
     #filepath = PARS['data_dir']+"test_10_mill.csv" 
-    outfile = make_mrec_outfile(filepath)
+    outfile = make_mrec_outfile(filepath,d,num_iters,reg)
     print outfile
     print 'reading file: %s'%filepath
     # load training set as scipy sparse matrix
