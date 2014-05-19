@@ -25,7 +25,9 @@ loc_out_test = "../data/test.vw"
 
 #training row descriptors
 id_index = 0
+training_chain_index = 1
 training_offer_id_index = 2
+training_market_index = 3
 train_repeater_index = 5
 training_date_index = -1
 
@@ -206,11 +208,15 @@ def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_
 					features['offer_value'] = offer_row[offer_value_index]
 					features['offer_quantity'] = offer_row[offer_quantity_index]
 					features['offer_date'] = training_row[training_date_index]	
-					
+					features['offer_chain'] = training_row[training_chain_index]
+					features['offer_market'] = training_row[training_market_index]
 					features['total_spend'] += float( row[purchaseamount_index] )	
+					transaction_chain_matches_offer = training_row[training_chain_index] == row[chain_index]
 					transaction_company_matches_offer = offer_row[offer_company_index] == row[company_index]
 					transaction_category_matches_offer = offer_row[offer_category_index] == row[category_index]
 					transaction_brand_matches_offer = offer_row[offer_brand_index] == row[brand_index]	
+					if transaction_chain_matches_offer:
+						update_buying_history_feature(features, 'chain', row, training_row)
 					if transaction_company_matches_offer:
 						update_buying_history_feature(features, 'company', row, training_row)
 					if transaction_category_matches_offer:
