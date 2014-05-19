@@ -5,7 +5,7 @@ import numpy as np
 import sys
 from collections import defaultdict
 import csv
-
+from readers import PARS
 
 class DataWrangling:
 
@@ -102,7 +102,7 @@ class DataWrangling:
 
 
 if __name__=="__main__":
-   data_dir= 'data/'
+   data_dir=PARS['data_dir']
    train_file= 'trainHistory.csv'
    test_file= 'testHistory.csv'
    offer_file= 'offers.csv'
