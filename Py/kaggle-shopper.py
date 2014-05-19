@@ -9,8 +9,8 @@ from readers import PARS
 
 class DataWrangling:
 
-   def __init__(self, data_dir, train_file, test_file, offer_file, transaction_file):
-        self._data_dir= data_dir
+   def __init__(self, train_file, test_file, offer_file, transaction_file):
+        self._data_dir= PARS['data_dir']
         self._train_file= train_file
         self._test_file= test_file
         self._offer_file= offer_file
@@ -67,6 +67,7 @@ class DataWrangling:
           next(infile)
           for line in infile:
              entries=line.split(',')
+             #TODO: explain these variables better
              productsize[(entries[0],entries[3])]+=float(entries[7])
              purchasequantity[(entries[0],entries[3])]+=int(entries[9])
              purchaseamount[(entries[0],entries[3])]+= float(entries[10])
@@ -102,7 +103,7 @@ class DataWrangling:
 
 
 if __name__=="__main__":
-   data_dir=PARS['data_dir']
+   #TODO: move these file defs into a new method of DataWrangling
    train_file= 'trainHistory.csv'
    test_file= 'testHistory.csv'
    offer_file= 'offers.csv'
@@ -112,7 +113,7 @@ if __name__=="__main__":
    transaction_aggr_file= 'transactions-aggr.csv'
    hist_offers_transaction_file= 'hist_offers_transaggr.csv'
 
-   dw=DataWrangling(data_dir, train_file, test_file, offer_file, transaction_file)
+   dw=DataWrangling(train_file, test_file, offer_file, transaction_file)
    dw.combine_trainhistory_offers(outfile=hist_offers_file)
    dw.reduce_transaction(outfile=reduced_transaction_file)
    dw.aggregate_transaction(infile=reduced_transaction_file, outfile=transaction_aggr_file)
