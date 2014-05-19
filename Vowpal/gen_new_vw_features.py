@@ -19,11 +19,15 @@ loc_train = "../data/trainHistory.csv"
 loc_test = "../data/testHistory.csv"
 loc_reduced = "../data/reduced.csv" 
 loc_out_train = "../data/train.vw"
+loc_out_march = "../data/train_march.vw"
+loc_out_april = "../data/train_april.vw"
 loc_out_test = "../data/test.vw"
 
+#training row descriptors
 id_index = 0
-train_repeater_index = 5
 training_offer_id_index = 2
+train_repeater_index = 5
+training_date_index = -1
 
 #transaction row descriptors
 id_index = 0
@@ -37,6 +41,8 @@ productsize_index = 7
 productmeasure_index = 8
 purchasequantity_index = 9
 purchaseamount_index = 10
+
+
 
 #offer row descriptors
 offer_category_index = 1
@@ -123,7 +129,7 @@ def load_offers():
 		offers[ row[id_index] ] = row
 	return offers
 
-def output_features(features, last_id, out_test, out_train):
+def output_features(features, last_id, out_test, out_train, out_march, out_april):
 	#negative features
 	if "has_bought_company" not in features:
 		features['never_bought_company'] = 1
@@ -131,13 +137,21 @@ def output_features(features, last_id, out_test, out_train):
 		features['never_bought_category'] = 1
 	if "has_bought_brand" not in features:
 		features['never_bought_brand'] = 1
+	if "has_bought_dept" not in features:
+		features['never_bought_dept'] = 1
 	if "has_bought_brand" in features and "has_bought_category" in features and "has_bought_company" in features:
 		features['has_bought_brand_company_category'] = 1
 	if "has_bought_brand" in features and "has_bought_category" in features:
 		features['has_bought_brand_category'] = 1
 	if "has_bought_brand" in features and "has_bought_company" in features:
 		features['has_bought_brand_company'] = 1
+	if "has_bought_brand" in features and "has_bought_dept" in features:
+		features['has_bought_brand_dept'] = 1
+	if "has_bought_company" in features and "has_bought_dept" in features:
+		features['has_bought_company_dept'] = 1
 	outline = ""
+	in_march = diff_days('2013-04-1', features['offer_date']) < 0
+	del features['offer_date']
 	test = False
 	for k, v in features.items():
 		if k == "label" and v == 0.5:
@@ -156,13 +170,17 @@ def output_features(features, last_id, out_test, out_train):
 		out_test.write( outline )
 	else:
 		out_train.write( outline )
+		if in_march:
+			out_march.write( outline )
+		else:
+			out_april.write( outline )
 
 def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_out_test):
 	offers = load_offers()
 	train_ids = load_train_ids()
 	test_ids = load_test_ids()
 
-	with open(loc_out_train, "wb") as out_train, open(loc_out_test, "wb") as out_test:
+	with open(loc_out_train, "wb") as out_train, open(loc_out_test, "wb") as out_test, open(loc_out_march, "wb") as out_march, open(loc_out_april, "wb") as out_april:
 		last_id = 0
 		features = defaultdict(float)
 		for e, line in enumerate( open(loc_transactions) ):
@@ -170,7 +188,7 @@ def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_
 				row = line.strip().split(",")
 				reading_rows_for_new_shopper = (last_id != row[id_index] and e != 1)
 				if reading_rows_for_new_shopper: 
-					output_features(features, last_id, out_test, out_train)
+					output_features(features, last_id, out_test, out_train, out_march, out_april)
 					features = defaultdict(float)
 				if row[id_index] in train_ids or row[id_index] in test_ids:
 					#generate label and history
@@ -186,7 +204,8 @@ def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_
 					offer_row = offers[ training_row[training_offer_id_index] ]
 					features['offer_dept'] = []
 					features['offer_value'] = offer_row[offer_value_index]
-					features['offer_quantity'] = offer_row[offer_quantity_index]	
+					features['offer_quantity'] = offer_row[offer_quantity_index]
+					features['offer_date'] = training_row[training_date_index]	
 					
 					features['total_spend'] += float( row[purchaseamount_index] )	
 					transaction_company_matches_offer = offer_row[offer_company_index] == row[company_index]
