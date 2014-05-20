@@ -24,5 +24,10 @@ def build_spark_cmd():
     cmd=p['ec2_dir']+'/'+cmd
     return cmd
 
+def run_in_shell(cmd):
+    import subprocess
+    subprocess.call([cmd])
 
-
+if __name__ == "__main__":
+    cmd=build_spark_cmd()
+    run_in_shell(cmd)
