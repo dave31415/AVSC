@@ -1,9 +1,9 @@
 #build a spark cluster
 import json
 
-def build_spark_cmd():
+def build_spark_cmd(spark_file="../myspark.json"):
     JSONDC=json.JSONDecoder()
-    p=JSONDC.decode(open('../spark.json','rU').read())
+    p=JSONDC.decode(open(spark_file,'rU').read())
     cmd="spark-ec2 -k %s -i %s.pem -t %s"%(p['pem'],p['pem'],p['type'])
     cmd=cmd+" -u %s -s %s -r %s"%(p['user'],p['n_slaves'],p['region'])
     cmd=cmd+" --ebs-vol-size %s"%p['diskGB']
@@ -31,5 +31,11 @@ def run_in_shell(cmd):
     os.system(full_cmd)
 
 if __name__ == "__main__":
-    cmd=build_spark_cmd()
+    import sys
+    args=sys.argv
+    if len(args) <= 1:
+        cmd=build_spark_cmd()
+    else :
+        spark_file=sys.argv[1] 
+        cmd=build_spark_cmd(spark_file)
     run_in_shell(cmd)
