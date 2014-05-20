@@ -1,0 +1,11 @@
+{
+"name":		"mysparkcluster",
+"type":		"m3.2xlarge",
+"n_slaves":	4,
+"pem":		"tw",
+"region":	"us-west-2",
+"diskGB":	100,
+"spot_price":	0.1,
+"user":		"root",
+"ec2_dir":      "/home/ubuntu/spark-0.9.1-bin-hadoop1/ec2"
+}
