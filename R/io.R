@@ -77,3 +77,22 @@ fast.agg<-function(){
    print(Sys.time()-start)
    return(agg)
 }
+
+
+cust.count<-function(){
+   start=Sys.time()
+   trans.file=paste(data.dir,'reduced.csv',sep='')
+   print("reading transactions")
+   trans=fread(trans.file)
+   print(Sys.time()-start)
+   print("aggregating")
+   customer.counts=trans[,.N,by=id]
+   print(Sys.time()-start)
+   print("writing to a file")
+   out.file=paste(data.dir,'customer.counts.csv',sep='')
+   write.csv(customer.counts,out.file)
+   print("done")
+   print(Sys.time()-start)
+}
+
+   
