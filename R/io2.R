@@ -1,0 +1,112 @@
+#AVSC
+library(data.table)
+library('bit64')
+
+#TODO: remove hardcode path
+#data.dir="/Users/davej/data/AVSC/"
+data.dir="/home/ubuntu/data/"
+
+read.offers<-function(){
+  file=paste(data.dir,'offers.csv',sep='')
+  return(fread(file))
+}
+
+read.history<-function(){
+  file=paste(data.dir,'trainHistory.csv',sep='')
+  o=read.offers()
+  setkey(o,offer)
+  h=fread(file)
+  setkey(h,offer)
+  #join on offer
+  data=o[h]
+  data[,repeater:=repeattrips>0]
+  data$offer=factor(data$offer)
+  data$category=factor(data$category)
+  data$company=factor(data$company)
+  data$id=factor(data$id)
+  data$brand=factor(data$brand)
+  data$chain=factor(data$chain)
+  data$market=factor(data$market)
+  data[,group:=as.integer(id) %% 100]
+  add.item(data)
+  #data[,item:=factor(paste(as.character(category),as.character(brand),sep='_'))]
+  return(data)
+}
+
+add.item<-function(data){
+  data[,item:=factor(paste(as.character(category),as.character(brand),sep='_'))]
+  data[,id.item:=factor(paste(as.character(id),as.character(item),sep='_'))]
+}
+
+fast.agg<-function(){
+   start=Sys.time()
+   trans.file=paste(data.dir,'reduced.csv',sep='')
+   print('reading history')
+   hist=read.history()
+   #assert that customers only appear once
+   stopifnot(nrow(hist) == length(unique(hist$id)))
+
+   print("reading transactions")
+   trans=fread(trans.file)
+   print(Sys.time()-start)
+
+   print("adding item")
+   add.item(trans)
+
+   print("aggregating by id and then item")
+   
+   trans.agg.by.id=trans[,list( 
+   	N.tot.by.id=sum(purchasequantity),Spend.tot.by.id=sum(purchaseamount),
+	N.unique.by.id=length(!duplicated(item)) 
+	),by=id]
+   alpha.N=10.0
+   #TODO: pick a good prior
+   prior.diversity=0.5
+   trans.agg.by.id[,diversity.by.id:=(N.unique.by.id+alpha.N)/(N.tot.by.id + alpha.N/prior.diversity)]
+
+   print("aggregating by item")
+   
+   trans.agg.by.item=trans[,list( 
+   	N.all.purchases.by.item=sum(purchasequantity),Spend.all.by.item=sum(purchaseamount)
+	N.unique.by.item=length(!duplicated(id))
+	),by=item]  
+
+   alpha.id=100.0
+   #TODO: pick a good prior
+   prior.diversity=0.1
+   trans.agg.by.item[,diversity.by.item:=(N.unique.by.item+alpha.id)/(N.tot.by.item + alpha.N/prior.diversity)]
+
+   print(Sys.time()-start)
+   print("joining aggs")
+   setkey(hist,id)
+   setkey(trans.agg.by.id,id)
+   hist=trans.agg.by.id[hist]
+
+   setkey(hist,item)
+   setkey(trans.agg.by.item,item)
+   hist=trans.agg.by.item[hist]
+
+   #now hist has aggregate info for both id and item
+   print(Sys.time()-start)
+   print("done")
+   return(hist)
+}
+
+
+cust.count<-function(){
+   start=Sys.time()
+   trans.file=paste(data.dir,'reduced.csv',sep='')
+   print("reading transactions")
+   trans=fread(trans.file)
+   print(Sys.time()-start)
+   print("aggregating")
+   customer.counts=trans[,.N,by=id]
+   print(Sys.time()-start)
+   print("writing to a file")
+   out.file=paste(data.dir,'customer.counts.csv',sep='')
+   write.csv(customer.counts,out.file)
+   print("done")
+   print(Sys.time()-start)
+}
+
+   
