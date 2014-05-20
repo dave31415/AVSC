@@ -20,13 +20,15 @@ def build_spark_cmd():
         pass
              
     cmd=cmd +" launch %s"%p['name']
-    print cmd
     cmd=p['ec2_dir']+'/'+cmd
+    print "command is:"
+    print cmd
     return cmd
 
 def run_in_shell(cmd):
-    import subprocess
-    subprocess.call([cmd])
+    import os
+    full_cmd="source ~/creds.sh ; %s"%cmd
+    os.system(full_cmd)
 
 if __name__ == "__main__":
     cmd=build_spark_cmd()
