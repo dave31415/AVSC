@@ -54,8 +54,8 @@ fast.agg<-function(){
    add.item(trans)
    print("aggregating")
    trans.agg=trans[,list(N.trans=.N,N.purchases=sum(purchasequantity),Tot.amount=sum(purchaseamount),
-	Min.price=min(purchaseamount), Max.price=max(purchaseamount)), 
-	id=first(id),item=first(item),
+	Min.price=min(purchaseamount), Max.price=max(purchaseamount), 
+	id=first(id),item=first(item)),
 	by=id.item]
    print(Sys.time()-start)
    print("reaggregating")
