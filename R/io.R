@@ -53,14 +53,15 @@ fast.agg<-function(){
    print("adding item")
    add.item(trans)
    print("aggregating")
-   trans.agg=trans[,list(N.trans=.N,N.purchases=sum(purchasequantity),Tot.amount=sum(purchaseamount),
+   trans.agg=trans[,list(N.item.ids=.N,N.purchases=sum(purchasequantity),Tot.amount=sum(purchaseamount),
 	Min.price=min(purchaseamount), Max.price=max(purchaseamount), 
 	id=first(id),item=first(item)),
 	by=id.item]
+
    print(Sys.time()-start)
    print("reaggregating")
    #roll up to id
-   trans.agg.all=trans.agg[,list(N.prod=.N,N.purchases.all=sum(N.purchases),Tot.amount.all=sum(Tot.amount),
+   trans.agg.all=trans.agg[,list(N.unique=.N,N.purchases.all=sum(N.purchases),Tot.amount.all=sum(Tot.amount),
         Min.price.all=min(Min.price), Max.price.all=max(Max.price)),
         by=id]	
    print(Sys.time()-start)
@@ -75,6 +76,10 @@ fast.agg<-function(){
    print("done")
    print("runtime")
    print(Sys.time()-start)
+   #use Laplace smoothing for ratios
+   diversity.prior=0.1
+   alpha=30.0
+   agg[,diversity:=(N.purchases+alpha)/(N.purchases+alpha/diversity.prior)
    return(agg)
 }
 
