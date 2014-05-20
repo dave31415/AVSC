@@ -9,25 +9,25 @@ def get_pars(spark_file="../myspark.json"):
 
 def stop_spark(p):
     print 'stopping'
-    cmd="spark-ec2 -k %s -i %s.pem -r %s stop %s"%(p['pem'],p['pem'],p['region'],p['name'])
+    cmd="spark-ec2 -k %s -i ~/%s.pem -r %s stop %s"%(p['pem'],p['pem'],p['region'],p['name'])
     cmd=p['ec2_dir']+'/'+cmd
     run_in_shell(cmd)
 
 def destroy_spark(p):
     print 'destroy'
-    cmd="spark-ec2 -k %s -i %s.pem -r %s destroy %s"%(p['pem'],p['pem'],p['region'],p['name'])
+    cmd="spark-ec2 -k %s -i ~/%s.pem -r %s destroy %s"%(p['pem'],p['pem'],p['region'],p['name'])
     cmd=p['ec2_dir']+'/'+cmd
     run_in_shell(cmd)
 
 
 def start_spark(p):
     print 'starting'
-    cmd="spark-ec2 -k %s -i %s.pem -r %s start %s"%(p['pem'],p['pem'],p['region'],p['name'])
+    cmd="spark-ec2 -k %s -i ~%s/.pem -r %s start %s"%(p['pem'],p['pem'],p['region'],p['name'])
     cmd=p['ec2_dir']+'/'+cmd
     run_in_shell(cmd)
 
 def launch_spark(p):
-    cmd="spark-ec2 -k %s -i %s.pem -r %s"%(p['pem'],p['pem'],p['region'])
+    cmd="spark-ec2 -k %s -i ~/%s.pem -r %s"%(p['pem'],p['pem'],p['region'])
     cmd=cmd+" -u %s -s %s -t %s"%(p['user'],p['n_slaves'],p['type'])
     cmd=cmd+" --ebs-vol-size %s"%p['diskGB']
     print p['spot_price'].__class__
