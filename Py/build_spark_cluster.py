@@ -13,6 +13,13 @@ def stop_spark(p):
     cmd=p['ec2_dir']+'/'+cmd
     run_in_shell(cmd)
 
+def destroy_spark(p):
+    print 'destroy'
+    cmd="spark-ec2 -k %s -i %s.pem -r %s destroy %s"%(p['pem'],p['pem'],p['region'],p['name'])
+    cmd=p['ec2_dir']+'/'+cmd
+    run_in_shell(cmd)
+
+
 def start_spark(p):
     print 'starting'
     cmd="spark-ec2 -k %s -i %s.pem -r %s start %s"%(p['pem'],p['pem'],p['region'],p['name'])
@@ -52,14 +59,15 @@ if __name__ == "__main__":
     args=sys.argv
     if len(args) == 1:
         p=get_pars()
-        launch_spark_pars(p)
+        launch_spark(p)
     elif len(args) == 2:
         spark_file=sys.args[1] 
         p=get_pars(spark_file)
         launch_spark(p)
     elif len(args) == 3:
-        if args[2] not in ['stop','start']: raise(ValueError,"I only know start and stop for second arg")
+        if args[2] not in ['stop','start','destroy']: raise(ValueError,"I only know start and stop for second arg")
         spark_file=sys.argv[1]
         p=get_pars(spark_file)
         if args[2] == 'start': start_spark(p)
         if args[2] == 'stop': stop_spark(p)
+        if args[2] == 'destroy': destroy_spark(p)
