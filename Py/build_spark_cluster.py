@@ -29,7 +29,7 @@ def start_spark(p):
 def launch_spark(p):
     cmd="spark-ec2 -k %s -i ~/%s.pem -r %s"%(p['pem'],p['pem'],p['region'])
     cmd=cmd+" -u %s -s %s -t %s"%(p['user'],p['n_slaves'],p['type'])
-    cmd=cmd+" --ebs-vol-size %s"%p['diskGB']
+    cmd=cmd+" --ebs-vol-size %s -w %s"%(p['diskGB'],p['wait'])
     print p['spot_price'].__class__
     if p['spot_price'].__class__ in [int,float]:
         print "Trying for spot price %s on %s in region %s"%(p['spot_price'],p['type'],p['region'])
