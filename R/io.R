@@ -61,7 +61,7 @@ fast.agg<-function(){
    print("reaggregating")
    #roll up to id
    trans.agg.all=trans.agg[,list(N.prod=.N,N.purchases.all=sum(N.purchases),Tot.amount.all=sum(Tot.amount),
-        Min.price=min(purchaseamount), Max.price=max(purchaseamount)),
+        Min.price.all=min(Min.price), Max.price.all=max(Max.price)),
         by=id]	
    print(Sys.time()-start)
    print("joining")
