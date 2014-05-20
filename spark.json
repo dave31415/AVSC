@@ -1,0 +1,12 @@
+{
+"name":		"baddasscluster",
+"type":		"m3.2xlarge",
+"n_slaves":	3,
+"pem":		"tw",
+"region":	"us-west-2",
+"diskGB":	10,
+"spot_price":	"none",
+"user":		"root",
+"ec2_dir":      "/home/ubuntu/spark-0.9.1-bin-hadoop1/ec2"
+"wait": 	300
+}

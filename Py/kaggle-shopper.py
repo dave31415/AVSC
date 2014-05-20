@@ -5,6 +5,7 @@ import numpy as np
 import sys
 from collections import defaultdict
 import csv
+<<<<<<< HEAD
 
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier,\
     AdaBoostClassifier, ExtraTreesClassifier
@@ -13,11 +14,14 @@ from sklearn import preprocessing
 from scipy.sparse import csr_matrix
 from sklearn import linear_model, svm
 from datetime import datetime, timedelta
+=======
+from readers import PARS
+>>>>>>> FETCH_HEAD
 
 class DataWrangling:
 
-   def __init__(self, data_dir, train_file, test_file, offer_file, transaction_file):
-        self._data_dir= data_dir
+   def __init__(self, train_file, test_file, offer_file, transaction_file):
+        self._data_dir= PARS['data_dir']
         self._train_file= train_file
         self._test_file= test_file
         self._offer_file= offer_file
@@ -74,6 +78,7 @@ class DataWrangling:
           next(infile)
           for line in infile:
              entries=line.split(',')
+             #TODO: explain these variables better
              productsize[(entries[0],entries[3])]+=float(entries[7])
              purchasequantity[(entries[0],entries[3])]+=int(entries[9])
              purchaseamount[(entries[0],entries[3])]+= float(entries[10])
@@ -251,7 +256,7 @@ class AnalyzePredict(DataWrangling):
 
 
 if __name__=="__main__":
-   data_dir= 'data/'
+   #TODO: move these file defs into a new method of DataWrangling
    train_file= 'trainHistory.csv'
    test_file= 'testHistory.csv'
    offer_file= 'offers.csv'
@@ -261,6 +266,7 @@ if __name__=="__main__":
    transaction_aggr_file= 'transactions-aggr.csv'
    hist_offers_transaction_file= 'hist_offers_transaggr.csv'
 
+<<<<<<< HEAD
    model = linear_model.LogisticRegression()
    date_to_split_begin= '04-01-2013'
    date_to_split_end= '04-20-2013'
@@ -280,6 +286,13 @@ if __name__=="__main__":
       dw.reduce_transaction(outfile=reduced_transaction_file)
       dw.aggregate_transaction(infile=reduced_transaction_file, outfile=transaction_aggr_file)
       dw.combine_hist_offer_transaggr(infile= transaction_aggr_file, outfile= hist_offers_transaction_file)
+=======
+   dw=DataWrangling(train_file, test_file, offer_file, transaction_file)
+   dw.combine_trainhistory_offers(outfile=hist_offers_file)
+   dw.reduce_transaction(outfile=reduced_transaction_file)
+   dw.aggregate_transaction(infile=reduced_transaction_file, outfile=transaction_aggr_file)
+   dw.combine_hist_offer_transaggr(infile= transaction_aggr_file, outfile= hist_offers_transaction_file)
+>>>>>>> FETCH_HEAD
 
    if case=='analyze' or case=='both':
        An=AnalyzePredict(data_dir, infile=hist_offers_transaction_file, date_begin=date_to_split_begin

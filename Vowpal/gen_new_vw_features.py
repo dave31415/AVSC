@@ -177,10 +177,14 @@ def output_features(features, last_id, out_test, out_train, out_march, out_april
 		else:
 			out_april.write( outline )
 
+
 def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_out_test):
 	offers = load_offers()
 	train_ids = load_train_ids()
 	test_ids = load_test_ids()
+	
+	print len(train_ids)
+	print len(test_ids)
 
 	with open(loc_out_train, "wb") as out_train, open(loc_out_test, "wb") as out_test, open(loc_out_march, "wb") as out_march, open(loc_out_april, "wb") as out_april:
 		last_id = 0
@@ -211,12 +215,11 @@ def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_
 					features['offer_chain'] = training_row[training_chain_index]
 					features['offer_market'] = training_row[training_market_index]
 					features['total_spend'] += float( row[purchaseamount_index] )	
-					transaction_chain_matches_offer = training_row[training_chain_index] == row[chain_index]
 					transaction_company_matches_offer = offer_row[offer_company_index] == row[company_index]
 					transaction_category_matches_offer = offer_row[offer_category_index] == row[category_index]
 					transaction_brand_matches_offer = offer_row[offer_brand_index] == row[brand_index]	
-					if transaction_chain_matches_offer:
-						update_buying_history_feature(features, 'chain', row, training_row)
+					if features['offer_chain'] == row[chain_index]
+						features['has_bought_at_chain_before'] = true
 					if transaction_company_matches_offer:
 						update_buying_history_feature(features, 'company', row, training_row)
 					if transaction_category_matches_offer:
