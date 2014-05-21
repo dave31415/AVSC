@@ -25,7 +25,7 @@ def destroy_spark(p):
 
 def start_spark(p):
     print 'starting'
-    cmd="spark-ec2 -k %s -i ~%s/.pem -r %s start %s"%(p['pem'],p['pem'],p['region'],p['name'])
+    cmd="spark-ec2 -k %s -i ~/%s.pem -r %s start %s"%(p['pem'],p['pem'],p['region'],p['name'])
     cmd=p['ec2_dir']+'/'+cmd
     run_in_shell(cmd)
 
