@@ -5,7 +5,6 @@ import numpy as np
 import sys
 from collections import defaultdict
 import csv
-<<<<<<< HEAD
 
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier,\
     AdaBoostClassifier, ExtraTreesClassifier
@@ -14,9 +13,6 @@ from sklearn import preprocessing
 from scipy.sparse import csr_matrix
 from sklearn import linear_model, svm
 from datetime import datetime, timedelta
-=======
-from readers import PARS
->>>>>>> FETCH_HEAD
 
 class DataWrangling:
 
@@ -266,7 +262,6 @@ if __name__=="__main__":
    transaction_aggr_file= 'transactions-aggr.csv'
    hist_offers_transaction_file= 'hist_offers_transaggr.csv'
 
-<<<<<<< HEAD
    model = linear_model.LogisticRegression()
    date_to_split_begin= '04-01-2013'
    date_to_split_end= '04-20-2013'
@@ -286,13 +281,6 @@ if __name__=="__main__":
       dw.reduce_transaction(outfile=reduced_transaction_file)
       dw.aggregate_transaction(infile=reduced_transaction_file, outfile=transaction_aggr_file)
       dw.combine_hist_offer_transaggr(infile= transaction_aggr_file, outfile= hist_offers_transaction_file)
-=======
-   dw=DataWrangling(train_file, test_file, offer_file, transaction_file)
-   dw.combine_trainhistory_offers(outfile=hist_offers_file)
-   dw.reduce_transaction(outfile=reduced_transaction_file)
-   dw.aggregate_transaction(infile=reduced_transaction_file, outfile=transaction_aggr_file)
-   dw.combine_hist_offer_transaggr(infile= transaction_aggr_file, outfile= hist_offers_transaction_file)
->>>>>>> FETCH_HEAD
 
    if case=='analyze' or case=='both':
        An=AnalyzePredict(data_dir, infile=hist_offers_transaction_file, date_begin=date_to_split_begin
@@ -303,10 +291,3 @@ if __name__=="__main__":
        #print 'best C, best AUC: ', best_c, best_auc
        mean_auc, std_auc=An.cv_loop(model, bestc=best_c, n_cv_loop=5)
        print 'mean, std AUC: ', mean_auc, std_auc
-
-
-
-
-
-
-
