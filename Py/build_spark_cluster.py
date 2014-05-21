@@ -1,5 +1,8 @@
 #build a spark cluster
 #needs some refactoring but works fine for now
+#other handy things
+# sudo yum --enablerepo epel-testing install s3cmd
+
 import json
 
 def get_pars(spark_file="../myspark.json"):

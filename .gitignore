@@ -1,0 +1,5 @@
+*.~
+*.pyc
+*.Rdata
+PARS.json
+creds*
