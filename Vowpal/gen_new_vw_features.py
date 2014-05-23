@@ -6,12 +6,16 @@ Kaggle Challenge:
 'Reduce the data and generate features' by Triskelion 
 After a forum post by BreakfastPirate
 Very mediocre and hacky code, single-purpose, but pretty fast
-Some refactoring by Zygmunt Zając <zygmunt@fastml.com>
+Some refactoring by Zygmunt Zaj��c <zygmunt@fastml.com>
 More refactoring done
 """
 
 from datetime import datetime, date
-from collections import defaultdict
+from data_reducer import *
+from offer_row import *
+from test_row import *
+from train_row import *
+from transaction_row import *
 
 loc_offers = "../data/offers.csv"
 loc_transactions = "../data/transactions.csv"
@@ -23,16 +27,16 @@ loc_out_march = "../data/train_march.vw"
 loc_out_april = "../data/train_april.vw"
 loc_out_test = "../data/test.vw"
 
-#training row descriptors
 id_index = 0
+
+#training row descriptors
 training_chain_index = 1
 training_offer_id_index = 2
 training_market_index = 3
-train_repeater_index = 5
+training_repeater_index = 5
 training_date_index = -1
 
 #transaction row descriptors
-id_index = 0
 chain_index = 1
 dept_index = 2
 category_index = 3
@@ -44,8 +48,6 @@ productmeasure_index = 8
 purchasequantity_index = 9
 purchaseamount_index = 10
 
-
-
 #offer row descriptors
 offer_category_index = 1
 offer_quantity_index = 2
@@ -54,52 +56,28 @@ offer_value_index = 4
 offer_brand_index = 5
 
 def update_buying_history_feature(features, feature_name, row, training_row):
-	features['has_bought_' + feature_name] += 1.0
-	features['has_bought_' + feature_name + '_q'] += float( row[purchasequantity_index] )
-	features['has_bought_' + feature_name + '_a'] += float( row[purchaseamount_index] )
+	add_to_dict(features, 'has_bought_' + feature_name, 1.0)
+	add_to_dict(features, 'has_bought_' + feature_name + '_q', float( row.purchasequantity ))
+	add_to_dict(features, 'has_bought_' + feature_name + '_a', float( row.purchaseamount ))
 
-	date_diff_days = diff_days(row[6],training_row[-1])
-	if date_diff_days < 30:
-		features['has_bought_' + feature_name + '_30'] += 1.0
-		features['has_bought_' + feature_name + '_q_30'] += float( row[purchasequantity_index] )
-		features['has_bought_' + feature_name + '_a_30'] += float( row[purchaseamount_index] )
-	if date_diff_days < 60:
-		features['has_bought_' + feature_name + '_60'] += 1.0
-		features['has_bought_' + feature_name + '_q_60'] += float( row[purchasequantity_index] )
-		features['has_bought_' + feature_name + '_a_60'] += float( row[purchaseamount_index] )
-	if date_diff_days < 90:
-		features['has_bought_' + feature_name + '_90'] += 1.0
-		features['has_bought_' + feature_name + '_q_90'] += float( row[purchasequantity_index] )
-		features['has_bought_' + feature_name + '_a_90'] += float( row[purchaseamount_index] )
-	if date_diff_days < 180:
-		features['has_bought_' + feature_name + '_180'] += 1.0
-		features['has_bought_' + feature_name + '_q_180'] += float( row[purchasequantity_index] )
-		features['has_bought_' + feature_name + '_a_180'] += float( row[purchaseamount_index] )
+	date_diff_days = diff_days(row.date,training_row.date)
+	add_time_limited_history_features(30, row, features, date_diff_days, feature_name)
+	add_time_limited_history_features(60, row, features, date_diff_days, feature_name)
+	add_time_limited_history_features(90, row, features, date_diff_days, feature_name)
+	add_time_limited_history_features(180, row, features, date_diff_days, feature_name)
+	
+def add_time_limited_history_features(num_days, row, features, date_diff_days, feature_name):
+	if date_diff_days < num_days:
+		add_to_dict(features, 'has_bought_' + feature_name + '_' + str(num_days), 1.0)
+		add_to_dict(features, 'has_bought_' + feature_name + '_q_' + str(num_days), float( row.purchasequantity ))
+		add_to_dict(features, 'has_bought_' + feature_name + '_a_' + str(num_days), float( row.purchaseamount ))
 
-def reduce_data(loc_offers, loc_transactions, loc_reduced):
-  start = datetime.now()
-  #get all categories and comps on offer in a dict
-  offers_cat = {}
-  offers_co = {}
-  for e, line in enumerate( open(loc_offers) ):
-	offers_cat[ line.split(",")[1] ] = 1
-	offers_co[ line.split(",")[3] ] = 1
-  #open output file
-  with open(loc_reduced, "wb") as outfile:
-	#go through transactions file and reduce
-	reduced = 0
-	for e, line in enumerate( open(loc_transactions) ):
-	  if e == 0:
-		outfile.write( line ) #print header
-	  else:
-		#only write when if category in offers dict
-		if line.split(",")[3] in offers_cat or line.split(",")[4] in offers_co:
-		  outfile.write( line )
-		  reduced += 1
-	  #progress
-	  if e % 5000000 == 0:
-		print e, reduced, datetime.now() - start
-  print e, reduced, datetime.now() - start
+def add_to_dict(dict, key, amount):
+	if key in dict:
+		dict[key] += amount
+	else:
+		dict[key] = 0.0
+		dict[key] += amount
 
 def diff_days(s1,s2):
 	date_format = "%Y-%m-%d"
@@ -108,27 +86,28 @@ def diff_days(s1,s2):
 	delta = b - a
 	return delta.days
 	
-def load_train_ids():
-	train_ids = {}
+def load_training_rows():
+	training = {}
 	for e, line in enumerate( open(loc_train) ):
 		if e > 0:
-			row = line.strip().split(",")
-			train_ids[row[id_index]] = row
-	return train_ids
+			row = TrainRow(line.strip())
+			training[row.id] = row
+	return training
 
-def load_test_ids():
-	test_ids = {}
+def load_test_rows():
+	tests = {}
 	for e, line in enumerate( open(loc_test) ):
 		if e > 0:
-			row = line.strip().split(",")
-			test_ids[row[id_index]] = row
-	return test_ids
+			row = TestRow(line.strip())
+			tests[row.id] = row
+	return tests
 	
-def load_offers():
+def load_offer_rows():
 	offers = {}
 	for e, line in enumerate( open(loc_offers) ):
-		row = line.strip().split(",")
-		offers[ row[id_index] ] = row
+		if e > 0:
+			row = OfferRow(line.strip())
+			offers[row.id] = row
 	return offers
 
 def output_features(features, last_id, out_test, out_train, out_march, out_april):
@@ -158,13 +137,10 @@ def output_features(features, last_id, out_test, out_train, out_march, out_april
 	for k, v in features.items():
 		if k == "label" and v == 0.5:
 			#test
-			outline = "1 '" + last_id + " |f" + outline
+			outline = "1 '" + str( last_id ) + " |f" + outline
 			test = True
 		elif k == "label":
-			outline = str(v) + " '" + last_id + " |f" + outline
-		elif k == "offer_dept":
-			#do nothing
-			outline += ""
+			outline = str(v) + " '" + str( last_id ) + " |f" + outline
 		else:
 			outline += " " + k+":"+str(v) 
 	outline += "\n"
@@ -177,67 +153,71 @@ def output_features(features, last_id, out_test, out_train, out_march, out_april
 		else:
 			out_april.write( outline )
 
+def reset_features(row, training_row, train_ids, offers):
+	features = dict()
+	if row.id in train_ids:
+		if training_row.repeater == "t":
+			features['label'] = 1
+		else:
+			features['label'] = 0
+	else:
+		features['label'] = 0.5
+	this_offer = offers[ training_row.offer]
+	features['offer_value'] = this_offer.value
+	features['offer_quantity'] = this_offer.quantity
+	features['offer_date'] = training_row.date	
+	features['offer_chain'] = training_row.chain
+	features['offer_market'] = training_row.market
+	features['total_spend'] = 0.0
+	return features
 
 def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_out_test):
-	offers = load_offers()
-	train_ids = load_train_ids()
-	test_ids = load_test_ids()
-	
-	print len(train_ids)
-	print len(test_ids)
+	offers = load_offer_rows()
+	train_ids = load_training_rows()
+	test_ids = load_test_rows()
 
 	with open(loc_out_train, "wb") as out_train, open(loc_out_test, "wb") as out_test, open(loc_out_march, "wb") as out_march, open(loc_out_april, "wb") as out_april:
 		last_id = 0
-		features = defaultdict(float)
+		features = dict()
+		features_dept = list()
 		for e, line in enumerate( open(loc_transactions) ):
 			if e > 0: #skip header
-				row = line.strip().split(",")
-				reading_rows_for_new_shopper = (last_id != row[id_index] and e != 1)
-				if reading_rows_for_new_shopper: 
+				row = TransactionRow(line.strip())
+				new_shopper = last_id != row.id
+				if new_shopper and e != 1: 
 					output_features(features, last_id, out_test, out_train, out_march, out_april)
-					features = defaultdict(float)
-				if row[id_index] in train_ids or row[id_index] in test_ids:
-					#generate label and history
-					if row[id_index] in train_ids:
-						training_row = train_ids[row[id_index]]
-						if train_ids[row[id_index]][train_repeater_index] == "t":
-							features['label'] = 1
-						else:
-							features['label'] = 0
+				if new_shopper:
+					if row.id in train_ids:
+						training_row = train_ids[row.id]
 					else:
-						training_row = test_ids[row[id_index]]
-						features['label'] = 0.5
-					offer_row = offers[ training_row[training_offer_id_index] ]
-					features['offer_dept'] = []
-					features['offer_value'] = offer_row[offer_value_index]
-					features['offer_quantity'] = offer_row[offer_quantity_index]
-					features['offer_date'] = training_row[training_date_index]	
-					features['offer_chain'] = training_row[training_chain_index]
-					features['offer_market'] = training_row[training_market_index]
-					features['total_spend'] += float( row[purchaseamount_index] )	
-					transaction_company_matches_offer = offer_row[offer_company_index] == row[company_index]
-					transaction_category_matches_offer = offer_row[offer_category_index] == row[category_index]
-					transaction_brand_matches_offer = offer_row[offer_brand_index] == row[brand_index]	
-					if features['offer_chain'] == row[chain_index]
-						features['has_bought_at_chain_before'] = true
-					if transaction_company_matches_offer:
+						training_row = test_ids[row.id]
+					features = reset_features(row, training_row, train_ids, offers)
+					features_dept = list()
+				if row.id in train_ids or row.id in test_ids:
+					if row.id in train_ids:
+						training_row = train_ids[row.id]
+					else:
+						training_row = test_ids[row.id]
+					#generate label and history
+					offer = offers[ training_row.offer]
+					features['total_spend'] += float( row.purchaseamount )	
+					if features['offer_chain'] == row.chain:
+						features['has_bought_at_chain_before'] = 1
+					if offer.company == row.company:
 						update_buying_history_feature(features, 'company', row, training_row)
-					if transaction_category_matches_offer:
+					if offer.category == row.category:
 						update_buying_history_feature(features, 'category', row, training_row)
-					if transaction_brand_matches_offer:
+					if offer.brand == row.brand:
 						update_buying_history_feature(features, 'brand', row, training_row)
-					if transaction_company_matches_offer and transaction_category_matches_offer and transaction_brand_matches_offer:
-						features['offer_dept'].append(row[dept_index])
-					if row[dept_index] in  features['offer_dept']:	
+					if offer.company == row.company and offer.category == row.category and offer.brand == row.brand and not (row.dept in features_dept):
+						features_dept.append(row.dept)
+					if row.dept in features_dept:	
 						update_buying_history_feature(features, 'dept', row, training_row)
 
-				last_id = row[id_index]
+				last_id = row.id
 				if e % 100000 == 0:
 					print e
 
 if __name__ == '__main__':
-	#reduce_data(loc_offers, loc_transactions, loc_reduced)
+	#DataReducer(loc_offers, loc_transactions, loc_reduced).reduce_data()
 	generate_features(loc_train, loc_test, loc_reduced, loc_out_train, loc_out_test)
-
-	
-	
