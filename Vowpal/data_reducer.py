@@ -15,18 +15,14 @@ class DataReducer:
         print start
         #get all categories and comps on offer in a dict
         offers_category = {}
-        offers_company = {}
-        offers_brand = {}
         for e, line in enumerate( open(self.loc_offers) ):
             offers_category[ line.split(",")[1] ] = 1
-            offers_company[ line.split(",")[3] ] = 1
-            offers_brand[ line.split(",")[5] ] = 1
         with open(self.loc_reduced, "wb") as outfile:
             for e, line in enumerate( open(loc_transactions) ):
                 cols = line.split(",")
                 if e == 0:
                     outfile.write( line ) #print header
-                elif cols[3] in offers_category or cols[4] in offers_company or cols[5] in offers_brand:
+                elif cols[3] in offers_category:
                     outfile.write( line )
                 #progress
                 if e % 5000000 == 0:
@@ -34,19 +30,17 @@ class DataReducer:
         print datetime.now() - start
         return self
         
+        
     def reduce_by_ten(self, loc_transactions):
-        with open(self.loc_reduced, "wb") as outfile:
-            start = datetime.now()
-            print start
-            for e, line in enumerate( open(loc_transactions) ):
-                if e > 0:
-                    row = line.split(",")
-                    id = int( row[0] )
-                    if id % 10 == 2:
-                        outfile.write( line ) #print header
-                    if e % 5000000 == 0:
-                        print e, datetime.now() - start
+        with open(self.loc_reduced, "wb") as outfile, open(loc_transactions) as infile:
+            next(infile)
+            int_p = int
+            my_split = str.split
+            my_filter = lambda x: int_p(my_split(x,",", 1)[0]) % 10 == 2
+            writer = lambda x: outfile.write(x)
+            map(writer,filter(my_filter, infile))        
         return self
     
 if __name__ == '__main__':
-    generate_features(loc_train, loc_test, loc_reduced, loc_out_train, loc_out_test)
+    DataReducer(loc_offers, loc_transactions, loc_reduced).reduce_by_ten(loc_transactions)
+    #DataReducer(loc_offers, loc_transactions, loc_reduced).reduce_data(loc_reduced)
