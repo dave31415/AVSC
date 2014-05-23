@@ -10,10 +10,10 @@ plot(perf, col=rainbow(10))
 abline(0,1)
 performance(pred, measure = "auc")
 
-predictions$label <- labels$V2
-neg.scores <- predictions[which(as.numeric(predictions$label) == 0),]$V2
-pos.scores <- predictions[which(as.numeric(predictions$label) == 1),]$V2
-mean(replicate(1000,mean(sample(pos.scores,2*length(pos.scores),replace=T) > sample(neg.scores,2*length(pos.scores),replace=T))))
+#predictions$label <- labels$V2
+#neg.scores <- predictions[which(as.numeric(predictions$label) == 0),]$V2
+#pos.scores <- predictions[which(as.numeric(predictions$label) == 1),]$V2
+#mean(replicate(1000,mean(sample(pos.scores,2*length(pos.scores),replace=T) > sample(neg.scores,2*length(pos.scores),replace=T))))
 
 
 
