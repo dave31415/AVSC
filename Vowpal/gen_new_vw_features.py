@@ -33,6 +33,8 @@ loc_out_items = "../data/items.csv"
 id_index = 0
 
 feature_fields = [
+"label",
+"id",
 "has_bought_at_chain_before",
 "has_bought_brand",
 "has_bought_brand_180",
@@ -111,6 +113,7 @@ feature_fields = [
 "offer_market",
 "offer_quantity",
 "offer_value",
+"offer_item_id",
 "total_spend"]
 
 #training row descriptors
@@ -215,6 +218,7 @@ def output_features(features, last_id, test, out_train, out_test, out_march, out
 	if "has_bought_company" in features and "has_bought_dept" in features:
 		features['has_bought_company_dept'] = 1
 
+	features['offer_item_id'] = ''.join([str(features['offer_category']),'_',str(features['offer_company']),'_',str(features['offer_brand'])])
 	in_march = diff_days('2013-04-1', features['offer_date']) < 0
 	if test:
 		out_test.writerow( features )
@@ -228,6 +232,7 @@ def output_features(features, last_id, test, out_train, out_test, out_march, out
 def reset_features(row, training_row, train_ids, offers):
 	features = dict()
 	offer = offers[ training_row.offer]
+	features['id'] = training_row.id
 	features['offer_value'] = offer.value
 	features['offer_quantity'] = offer.quantity
 	features['offer_date'] = training_row.date	
@@ -240,7 +245,7 @@ def reset_features(row, training_row, train_ids, offers):
 	return features
 
 def output_items_and_categories(items, categories):
-	items_cols = ["item_id", "category", "company", "brand", "total", "amount", "quantity"]
+	items_cols = ["item_id", "item_category", "item_company", "item_brand", "item_total", "item_amount", "item_quantity"]
 	items_headers = dict()
 	items_dw = DictWriter(open(loc_out_items, "wb"), delimiter=',', fieldnames=items_cols)
 	for n in items_cols:
@@ -249,35 +254,35 @@ def output_items_and_categories(items, categories):
 	for key in items.iterkeys():
 		keys = key.split("_")
 		items[key]['item_id'] = key
-		items[key]['category'] = keys[0]
-		items[key]['company'] = keys[1]
-		items[key]['brand'] = keys[2]
+		items[key]['item_category'] = keys[0]
+		items[key]['item_company'] = keys[1]
+		items[key]['item_brand'] = keys[2]
 		items_dw.writerow(items[key])
 			
-	categories_cols = ["category", "total", "amount", "quantity"]
+	categories_cols = ["category_id", "category_total", "category_amount", "category_quantity"]
 	categories_header = dict()
 	categories_dw = DictWriter(open(loc_out_categories, "wb"), delimiter=',', fieldnames=categories_cols)
 	for n in categories_cols:
 		categories_header[n] = n
 	categories_dw.writerow(categories_header)
 	for key in categories.iterkeys():
-		categories[key]['category'] = key
+		categories[key]['category_id'] = key
 		categories_dw.writerow(categories[key])
 			
 def update_items_history(items, row):
 	item_id = str(row.category) + "_" + str(row.company) + "_" + str(row.brand)
 	if item_id not in items.keys():
 		items[item_id] = dict()
-	add_to_dict(items[item_id], "total", 1.0)
-	add_to_dict(items[item_id], "amount", row.purchaseamount)
-	add_to_dict(items[item_id], "quantity", row.purchasequantity)
+	add_to_dict(items[item_id], "item_total", 1.0)
+	add_to_dict(items[item_id], "item_amount", row.purchaseamount)
+	add_to_dict(items[item_id], "item_quantity", row.purchasequantity)
 
 def update_categories_history(categories, row):
 	if row.category not in categories.keys():
 		categories[row.category] = dict()
-	add_to_dict(categories[row.category], "total", 1.0)
-	add_to_dict(categories[row.category], "amount", row.purchaseamount)
-	add_to_dict(categories[row.category], "quantity", row.purchasequantity)
+	add_to_dict(categories[row.category], "category_total", 1.0)
+	add_to_dict(categories[row.category], "category_amount", row.purchaseamount)
+	add_to_dict(categories[row.category], "category_quantity", row.purchasequantity)
 
 def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_out_test):
 	offers = load_offer_rows()
@@ -309,11 +314,14 @@ def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_
 			if new_shopper and e != 1:
 				output_features(features, last_id, row.id in test_ids, out_train, out_test, out_march, out_april)
 			if new_shopper:
+				label = '0.5'
 				if row.id in train_ids:
 					training_row = train_ids[row.id]
+					label = '1' if (training_row.repeater == 't') else '0'
 				else:
 					training_row = test_ids[row.id]
 				features = reset_features(row, training_row, train_ids, offers)
+				features['label'] = label
 				features_dept = list()
 			if row.id in train_ids or row.id in test_ids:
 				if row.id in train_ids:

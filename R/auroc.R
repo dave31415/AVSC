@@ -2,7 +2,7 @@
 
 library(ROCR)
 setwd('/Users/Thoughtworker/Programming/Kaggle/avsc/data')
-predictions <- read.csv('predictions.csv', header=F)
+predictions <- read.csv('predictions.csv', header=T)
 labels <- read.csv('labels.csv', header=F)
 pred <- prediction(predictions$V2, labels$V2)
 perf <- performance(pred, measure = "tpr", x.measure = "fpr") 
