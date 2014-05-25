@@ -15,3 +15,7 @@ python csv_to_vw.py -l 1 -i item_id,offer_item_id,offer_date data/train_april.cs
 python csv_to_vw.py -l 1 -i item_id,offer_item_id,offer_date data/train_march.csv data/train_march.vw
 python csv_to_vw.py -l 1 -i item_id,offer_item_id,offer_date data/train.csv data/train.vw
 python csv_to_vw.py -l 1 -i item_id,offer_item_id,offer_date data/test.csv data/test.vw
+
+# cat data/testHistory.csv | awk -F ',' '{print $1}' | sort | uniq > /tmp/orig_test_ids.txt
+# cat data/test.csv | awk -F ',' '{print $2",0"}' | sort | uniq > /tmp/final_test_ids.txt
+# diff /tmp/orig_test_ids.txt /tmp/final_test_ids.txt | grep "<" | awk '{print $2}' >> data/predictions.csv
