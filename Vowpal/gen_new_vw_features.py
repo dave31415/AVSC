@@ -6,7 +6,7 @@ Kaggle Challenge:
 'Reduce the data and generate features' by Triskelion 
 After a forum post by BreakfastPirate
 Very mediocre and hacky code, single-purpose, but pretty fast
-Some refactoring by Zygmunt Zaj������c <zygmunt@fastml.com>
+Some refactoring by Zygmunt Zaj������������������c <zygmunt@fastml.com>
 More refactoring done
 """
 
@@ -33,17 +33,15 @@ loc_out_items = "../data/items.csv"
 id_index = 0
 
 feature_fields = [
+"label",
+"id",
 "has_bought_at_chain_before",
 "has_bought_brand",
 "has_bought_brand_180",
 "has_bought_brand_30",
-"has_bought_brand_60",
-"has_bought_brand_90",
 "has_bought_brand_a",
 "has_bought_brand_a_180",
 "has_bought_brand_a_30",
-"has_bought_brand_a_60",
-"has_bought_brand_a_90",
 "has_bought_brand_category",
 "has_bought_brand_company",
 "has_bought_brand_company_category",
@@ -51,54 +49,34 @@ feature_fields = [
 "has_bought_brand_q",
 "has_bought_brand_q_180",
 "has_bought_brand_q_30",
-"has_bought_brand_q_60",
-"has_bought_brand_q_90",
 "has_bought_category",
 "has_bought_category_180",
 "has_bought_category_30",
-"has_bought_category_60",
-"has_bought_category_90",
 "has_bought_category_a",
 "has_bought_category_a_180",
 "has_bought_category_a_30",
-"has_bought_category_a_60",
-"has_bought_category_a_90",
 "has_bought_category_q",
 "has_bought_category_q_180",
 "has_bought_category_q_30",
-"has_bought_category_q_60",
-"has_bought_category_q_90",
 "has_bought_company",
 "has_bought_company_180",
 "has_bought_company_30",
-"has_bought_company_60",
-"has_bought_company_90",
 "has_bought_company_a",
 "has_bought_company_a_180",
 "has_bought_company_a_30",
-"has_bought_company_a_60",
-"has_bought_company_a_90",
 "has_bought_company_dept",
 "has_bought_company_q",
 "has_bought_company_q_180",
 "has_bought_company_q_30",
-"has_bought_company_q_60",
-"has_bought_company_q_90",
 "has_bought_dept",
 "has_bought_dept_180",
 "has_bought_dept_30",
-"has_bought_dept_60",
-"has_bought_dept_90",
 "has_bought_dept_a",
 "has_bought_dept_a_180",
 "has_bought_dept_a_30",
-"has_bought_dept_a_60",
-"has_bought_dept_a_90",
 "has_bought_dept_q",
 "has_bought_dept_q_180",
 "has_bought_dept_q_30",
-"has_bought_dept_q_60",
-"has_bought_dept_q_90",
 "never_bought_brand",
 "never_bought_category",
 "never_bought_company",
@@ -111,6 +89,7 @@ feature_fields = [
 "offer_market",
 "offer_quantity",
 "offer_value",
+"offer_item_id",
 "total_spend"]
 
 #training row descriptors
@@ -146,8 +125,6 @@ def update_buying_history_feature(features, feature_name, row, training_row):
 
 	date_diff_days = diff_days(row.date,training_row.date)
 	add_time_limited_history_features(30, row, features, date_diff_days, feature_name)
-	add_time_limited_history_features(60, row, features, date_diff_days, feature_name)
-	add_time_limited_history_features(90, row, features, date_diff_days, feature_name)
 	add_time_limited_history_features(180, row, features, date_diff_days, feature_name)
 	
 def add_time_limited_history_features(num_days, row, features, date_diff_days, feature_name):
@@ -215,6 +192,7 @@ def output_features(features, last_id, test, out_train, out_test, out_march, out
 	if "has_bought_company" in features and "has_bought_dept" in features:
 		features['has_bought_company_dept'] = 1
 
+	features['offer_item_id'] = ''.join([str(features['offer_category']),'_',str(features['offer_company']),'_',str(features['offer_brand'])])
 	in_march = diff_days('2013-04-1', features['offer_date']) < 0
 	if test:
 		out_test.writerow( features )
@@ -228,6 +206,7 @@ def output_features(features, last_id, test, out_train, out_test, out_march, out
 def reset_features(row, training_row, train_ids, offers):
 	features = dict()
 	offer = offers[ training_row.offer]
+	features['id'] = training_row.id
 	features['offer_value'] = offer.value
 	features['offer_quantity'] = offer.quantity
 	features['offer_date'] = training_row.date	
@@ -240,7 +219,7 @@ def reset_features(row, training_row, train_ids, offers):
 	return features
 
 def output_items_and_categories(items, categories):
-	items_cols = ["item_id", "category", "company", "brand", "total", "amount", "quantity"]
+	items_cols = ["item_id", "item_category", "item_company", "item_brand", "item_total", "item_amount", "item_quantity"]
 	items_headers = dict()
 	items_dw = DictWriter(open(loc_out_items, "wb"), delimiter=',', fieldnames=items_cols)
 	for n in items_cols:
@@ -249,40 +228,47 @@ def output_items_and_categories(items, categories):
 	for key in items.iterkeys():
 		keys = key.split("_")
 		items[key]['item_id'] = key
-		items[key]['category'] = keys[0]
-		items[key]['company'] = keys[1]
-		items[key]['brand'] = keys[2]
+		items[key]['item_category'] = keys[0]
+		items[key]['item_company'] = keys[1]
+		items[key]['item_brand'] = keys[2]
 		items_dw.writerow(items[key])
 			
-	categories_cols = ["category", "total", "amount", "quantity"]
+	categories_cols = ["category_id", "category_total", "category_amount", "category_quantity"]
 	categories_header = dict()
 	categories_dw = DictWriter(open(loc_out_categories, "wb"), delimiter=',', fieldnames=categories_cols)
 	for n in categories_cols:
 		categories_header[n] = n
 	categories_dw.writerow(categories_header)
 	for key in categories.iterkeys():
-		categories[key]['category'] = key
+		categories[key]['category_id'] = key
 		categories_dw.writerow(categories[key])
 			
 def update_items_history(items, row):
 	item_id = str(row.category) + "_" + str(row.company) + "_" + str(row.brand)
 	if item_id not in items.keys():
 		items[item_id] = dict()
-	add_to_dict(items[item_id], "total", 1.0)
-	add_to_dict(items[item_id], "amount", row.purchaseamount)
-	add_to_dict(items[item_id], "quantity", row.purchasequantity)
+	add_to_dict(items[item_id], "item_total", 1.0)
+	add_to_dict(items[item_id], "item_amount", row.purchaseamount)
+	add_to_dict(items[item_id], "item_quantity", row.purchasequantity)
 
 def update_categories_history(categories, row):
 	if row.category not in categories.keys():
 		categories[row.category] = dict()
-	add_to_dict(categories[row.category], "total", 1.0)
-	add_to_dict(categories[row.category], "amount", row.purchaseamount)
-	add_to_dict(categories[row.category], "quantity", row.purchasequantity)
+	add_to_dict(categories[row.category], "category_total", 1.0)
+	add_to_dict(categories[row.category], "category_amount", row.purchaseamount)
+	add_to_dict(categories[row.category], "category_quantity", row.purchasequantity)
+
+def output_missing_test_ids(test_ids, found_test_ids):
+	with open(loc_missing_test_ids) as outfile:
+		test_ids.keys - found_test_ids
 
 def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_out_test):
 	offers = load_offer_rows()
 	train_ids = load_training_rows()
 	test_ids = load_test_rows()
+	found_test_ids = []
+	print len(test_ids)
+	print len(train_ids)
 	items = dict()
 	categories = dict()
 	out_train = DictWriter(open(loc_out_train, "wb"), delimiter=',', fieldnames=feature_fields)
@@ -307,13 +293,21 @@ def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_
 			row = TransactionRow(line.strip())
 			new_shopper = last_id != row.id
 			if new_shopper and e != 1:
-				output_features(features, last_id, row.id in test_ids, out_train, out_test, out_march, out_april)
+				output_features(features, last_id, last_id in test_ids, out_train, out_test, out_march, out_april)
 			if new_shopper:
-				if row.id in train_ids:
-					training_row = train_ids[row.id]
-				else:
+				label = '0'
+				if row.id in test_ids:
+					label = '0.5'
 					training_row = test_ids[row.id]
+					found_test_ids.append(row.id)
+				else:
+					training_row = train_ids[row.id]
+					if (training_row.repeater == 't'):
+						label = '1'
+					else:
+						label = '0'
 				features = reset_features(row, training_row, train_ids, offers)
+				features['label'] = label
 				features_dept = list()
 			if row.id in train_ids or row.id in test_ids:
 				if row.id in train_ids:
@@ -346,6 +340,7 @@ def generate_features(loc_train, loc_test, loc_transactions, loc_out_train, loc_
 				print e, datetime.now() - start
 	print datetime.now() - start
 	output_items_and_categories(items, categories)
+	output_missing_test_ids(test_ids, found_test_ids)
 	
 if __name__ == '__main__':
 	generate_features(loc_train, loc_test, loc_reduced, loc_out_train, loc_out_test)
