@@ -152,6 +152,26 @@ class DataWrangling:
                  if ct%1000000==0: print 'no of lines read ', ct
        print 'time takes ',time.time() -t_i
 
+   def __data_grp(self, mergedata,data, cat_combinations, cat_combinations_to_join, func_to_apply):
+        data_grp=data.groupby(cat_combinations,as_index=False).agg(func_to_apply)
+        mergedata=pd.merge(mergedata, data_grp, left_on=cat_combinations,
+                               right_on=cat_combinations_to_join, how='left')
+        for cat in cat_combinations_to_join: del mergedata[cat]
+        return mergedata
+
+   def __rename_data(self, mergedata, names, new_names):
+        mergedata.rename(columns={names[-4]: new_names[0], names[-3]: new_names[1],
+                                        names[-2]: new_names[2], names[-1]: new_names[3]}, inplace=True)
+
+   def __by_date(self, data, col_names, col_num):
+      data_bin=[]
+      ct=0
+      for j in xrange(12,col_num):
+            data_bin.append(data[data[col_names[j]]==1])
+            print ct, data_bin[ct].shape
+            ct+=1
+      return data_bin
+
    def combine_hist_offer_transaggr_v1(self, infile='', infile1='',infile2='',outfile1='', outfile2=''):
        #extend above aggr_transaction
        #and combinations of cat X comp etc
@@ -182,7 +202,7 @@ class DataWrangling:
 
        mergedata_train=pd.read_csv(infile1)
        mergedata_test=pd.read_csv(infile2)
-       cat_to_gen=['chain','category','company','brand']
+       cat_to_gen=['category','company','brand'] #['chain',
        func_to_apply={'productsize':[len,np.median],
                       'purchasequantity':[np.median],
                       'purchaseamount':[np.median]}
@@ -199,43 +219,42 @@ class DataWrangling:
                cat_combinations_to_join.append([(i,'') for i in indicies] )
        #print cat_combinations
        #print cat_combinations_to_join
-
        data=pd.read_csv(infile)
+       col_names=data.columns.values
+       col_num=len(col_names)
        t_1=time.time()-t_i
+       data_grp_to_divide=None
+       if col_num>11: data_bin=self.__by_date(data,col_names, col_num)
        print t_1
        t_1=time.time()
-       data_grp_to_divide=None
        for i in xrange(len(cat_combinations)):
-           data_grp=data.groupby(cat_combinations[i],as_index=False).agg(func_to_apply)
+            mergedata_train= self.__data_grp(mergedata_train,data,cat_combinations[i],
+                                                    cat_combinations_to_join[i], func_to_apply)
+            mergedata_test= self.__data_grp(mergedata_test,data,cat_combinations[i],
+                                                    cat_combinations_to_join[i], func_to_apply)
 
-           #if i==0:  data_grp_to_divide = data_grp[list_cat_to_divide]
+            new_names=[name+str(i) for name in ['len_','ps_median_','pq_median_','pa_median_']]
+            names=mergedata_train.columns.values
+            self.__rename_data(mergedata_train,names,new_names)
+            self.__rename_data(mergedata_test,names,new_names)
+            print mergedata_train.columns.values, mergedata_test.columns.values
+            print i ,' feature aggregation+merging done'
 
-           mergedata_train=pd.merge(mergedata_train, data_grp, left_on=cat_combinations[i],
-                               right_on=cat_combinations_to_join[i], how='left')
-           mergedata_test=pd.merge(mergedata_test, data_grp, left_on=cat_combinations[i],
-                               right_on=cat_combinations_to_join[i], how='left')
+            if col_num>=11:
+               for j in xrange(col_num-12):
+                   mergedata_train= self.__data_grp(mergedata_train,data_bin[j],cat_combinations[i],
+                                                    cat_combinations_to_join[i], func_to_apply)
+                   mergedata_test= self.__data_grp(mergedata_test,data_bin[j],cat_combinations[i],
+                                                    cat_combinations_to_join[i], func_to_apply)
 
-           #for cat in list_cat_to_divide:
-                 #print mergedata_train[cat],data_grp_to_divide[cat]
-           #      mergedata_train[cat]=mergedata_train[cat]/data_grp_to_divide[cat]
-           #      mergedata_test[cat]=mergedata_test[cat]/data_grp_to_divide[cat]
-
-
-           for cat in cat_combinations_to_join[i]:
-               del mergedata_train[cat]
-               del mergedata_test[cat]
-           new_names=[name+str(i) for name in ['len','ps_median_','pq_median_','pa_median_']]
-           names=mergedata_train.columns.values
-           mergedata_train.rename(columns={names[-4]: new_names[0], names[-3]: new_names[1],
-                                names[-2]: new_names[2], names[-1]: new_names[3]}, inplace=True)
-           mergedata_test.rename(columns={names[-4]: new_names[0], names[-3]: new_names[1],
-                                names[-2]: new_names[2], names[-1]: new_names[3]}, inplace=True)
-
-           #if i==0:
-           #     del mergedata_train['len_0']
-           #     del mergedata_test['len_0']
-           print mergedata_train.columns.values, mergedata_test.columns.values
-           print i ,' feature aggregation+merging done'
+                   new_names=[name+"_"+col_names[j+12]+"_"+str(i) for name in
+                              ['len','ps_median','pq_median','pa_median']]
+                   names=mergedata_train.columns.values
+                   self.__rename_data(mergedata_train,names,new_names)
+                   self.__rename_data(mergedata_test,names,new_names)
+                   print mergedata_train.columns.values, mergedata_test.columns.values
+                   print j, col_names[j+12],' done'
+               print i ,' feature aggregation+merging done'
 
        mergedata_train.to_csv(outfile1)
        mergedata_test.to_csv(outfile2)
@@ -575,13 +594,13 @@ if __name__=="__main__":
        transaction_file= 'transactions.csv'
 
        trainhist_offers_file= 'trainhist_offers.csv'
-       reduced_transaction_file= 'reduced1.csv'
-       reduced_dated= 'reduced-dated1.csv'
+       reduced_transaction_file= 'reduced.csv'
+       reduced_dated= 'reduced-dated.csv'
        transaction_aggr_file= 'transactions-aggr.csv'
-       trainhist_offers_transaction_file= 'trainhist_offers_transaggr.csv'
+       trainhist_offers_transaction_file= 'trainhist_offers_transaggr_dated.csv'
 
        testhist_offers_file= 'testhist_offers.csv'
-       testhist_offers_transaction_file= 'testhist_offers_transaggr.csv'
+       testhist_offers_transaction_file= 'testhist_offers_transaggr_dated.csv'
 
 
        model = linear_model.LogisticRegression() #GaussianNB() svm.SVC()
@@ -605,10 +624,10 @@ if __name__=="__main__":
           #dw.add_past_purchase_last_n_days(infile=train_file, infile1=reduced_transaction_file,
                                           # outfile=reduced_dated)
 
-          dw.combine_history_offers(infile=train_file, outfile=trainhist_offers_file)
-          dw.combine_history_offers(infile=test_file, outfile=testhist_offers_file)
+          #dw.combine_history_offers(infile=train_file, outfile=trainhist_offers_file)
+          #dw.combine_history_offers(infile=test_file, outfile=testhist_offers_file)
 
-          dw.combine_hist_offer_transaggr_v1(infile=reduced_transaction_file, infile1=trainhist_offers_file,
+          dw.combine_hist_offer_transaggr_v1(infile=reduced_dated, infile1=trainhist_offers_file,
                                     infile2=testhist_offers_file,outfile1=trainhist_offers_transaction_file,
                                     outfile2=testhist_offers_transaction_file)
           #dw.combine_hist_offer_transaggr(infile= transaction_aggr_file, outfile= trainhist_offers_transaction_file)
@@ -634,14 +653,12 @@ if __name__=="__main__":
            # cv test using the optimized hyperparameter
            mean_auc, std_auc=An.cv_loop(model, bestc=best_c, data= data_aggr_scaled, n_cv_loop=8)
            print 'mean, std AUC: ', mean_auc, std_auc
-           exit()
+
            # submission on test data
            print "Training full model..."
            totaldata_agr_scaled = An.normalize_data(add_data, case='test')
            preds=An.predict_test(model, totaldata_agr_scaled)
-           An.create_test_submission(filename='submit/run3.csv', prediction=preds)
-
-
+           An.create_test_submission(filename='submit/run5.csv', prediction=preds)
            #An.feature_importance(model=model_for_feature_imp)
            print 'time takes to analyze: ', time.time() - t_i
 
