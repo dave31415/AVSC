@@ -1,0 +1,10 @@
+feature |avg. entropy |normalized entropy|
+-------------------------------------------
+chain    |1.35        |0.0104            |
+company  |0.92        |0.084             |
+brand    |0.94        |0.078             |
+category |0.91        |0.070             |
+------------------------------------------
+repeattrips|0.93      |0.017             |
+offervalue |0.74      |0.123             |
+offerdate  |1.32      |0.023             |
