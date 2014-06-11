@@ -70,9 +70,9 @@ fast.agg<-function(){
    print("aggregating by item")
    
    trans.agg.by.item=trans[,list( 
-   	N.all.purchases.by.item=sum(purchasequantity),Spend.all.by.item=sum(purchaseamount)
+   	N.all.purchases.by.item=sum(purchasequantity),Spend.all.by.item=sum(purchaseamount),
 	N.unique.by.item=length(!duplicated(id)),Mean.price.item.by.item=mean(price,trim=0.05),Med.price.by.item=median(price))
-	),by=item]  
+,by=item]  
 
    alpha.id=100.0
    #TODO: pick a good prior
