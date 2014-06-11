@@ -34,8 +34,21 @@ read.history<-function(){
 }
 
 add.item<-function(data){
-  data[,item:=factor(paste(as.character(category),as.character(brand),sep='_'))]
-  data[,id.item:=factor(paste(as.character(id),as.character(item),sep='_'))]
+   data[,item.family:=factor(paste(
+      as.character(category),as.character(brand),as.character(company) 
+                           ,sep='_'))]
+  
+   data[,id.item.family:=factor(paste(as.character(id),as.character(item.family),sep='_'))]
+  
+   if ('productmeasure' %in% names(data) & 'productsize' %in% names(data)) {
+
+     data[,item:=factor(paste(
+     as.character(category),as.character(brand),as.character(company),
+     as.character(productsize),as.character(productmeasure)
+     ,sep='_'))]
+  
+     data[,id.item:=factor(paste(as.character(id),as.character(item),sep='_'))]
+    }
 }
 
 first <-function(x) x[1]
@@ -74,7 +87,7 @@ fast.agg<-function(){
    trans.agg.by.item=trans[,list( 
    	N.all.purchases.by.item=sum(purchasequantity),Spend.all.by.item=sum(purchaseamount),
 	N.unique.by.item=length(!duplicated(id)),N.tot.by.item=.N,
-  Mean.price.item.by.item=mean(price,trim=0.05),Med.price.by.item=median(price))
+  Mean.price.item.by.item=mean(price,trim=0.05,na.rm=T),Med.price.by.item=median(price))
 ,by=item]  
 
    alpha.id=100.0
@@ -83,8 +96,8 @@ fast.agg<-function(){
    trans.agg.by.item[,diversity.by.item:=(N.unique.by.item+alpha.id)/(N.tot.by.item + alpha.N/prior.diversity)]
 
    print("aggregating by id.item")
-   trans.agg.by.id.item=trans[,list (Mean.price.item.by.id.item=mean(price,trim=0.05),Med.price.by.id.item=median(price),
-                                     id=first(id),item=first(item))
+   trans.agg.by.id.item=trans[,list (Mean.price.item.by.id.item=mean(price,trim=0.05,na.rm=T),
+                                     id=first(id),item=first(item),id.item.family=first(id.item.family))
                              ,by=id.item]
 
    print("joining aggregates")
@@ -100,18 +113,28 @@ fast.agg<-function(){
    print("Calculating Discounts")
 
    trans.agg.by.id.item[,Price.Discount:=Mean.price.item.by.item-Mean.price.item.by.id.item]
-   trans.agg.by.id.item[,Price.Discount.Percent:= Price.Discount/Mean.price.item.by.item]
+   trans.agg.by.id.item[,Price.Discount.Percent:= 100.0*Price.Discount/Mean.price.item.by.item]
 
-   print("Calculating Mean discount for each customer")
-
-   trans.agg.by.id.item[,Mean.Discount:=mean(Price.Discount,trim=0.05),by=id]
+   print("Aggregating id.item down to less granular id.item.family")
+   #add other stuff ???
+   trans.agg.by.id.item.family = trans.agg.by.id.item[,list(
+     Mean.Discount.Percent=mean(Price.Discount.Percent)
+     ),by=id.item.family]    
 
    print(Sys.time()-start)
+   #this join may make less sense for item.family 
    print("joining aggs to training file")
-
-   setkey(hist,id.item)
-   setkey(trans.agg.by.id.item,id.item)
+   setkey(hist,id.item.family)
+   setkey(trans.agg.by.id.item,id.item.family)
    hist=trans.agg.by.id.item[hist]
+
+   print("joining Mean.Discount.Percent to training")
+  
+   setkey(hist,id.item.family)
+   setkey(trans.agg.by.id.item.family,id.item.family)  
+   hist=trans.agg.by.id.item.family[hist]
+
+   agg[,Mean.Discount.Percent.By.Customer=mean(Mean.Discount.Percent),by=id]
 
    print(Sys.time()-start)
    print("done")
