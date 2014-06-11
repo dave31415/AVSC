@@ -38,6 +38,8 @@ add.item<-function(data){
   data[,id.item:=factor(paste(as.character(id),as.character(item),sep='_'))]
 }
 
+first <-function(x) x[1]
+
 fast.agg<-function(){
    start=Sys.time()
    trans.file=paste(data.dir,'reduced.csv',sep='')
@@ -68,7 +70,7 @@ fast.agg<-function(){
    trans.agg.by.id[,diversity.by.id:=(N.unique.by.id+alpha.N)/(N.tot.by.id + alpha.N/prior.diversity)]
 
    print("aggregating by item")
-   
+     
    trans.agg.by.item=trans[,list( 
    	N.all.purchases.by.item=sum(purchasequantity),Spend.all.by.item=sum(purchaseamount),
 	N.unique.by.item=length(!duplicated(id)),N.tot.by.item=.N,
@@ -81,30 +83,35 @@ fast.agg<-function(){
    trans.agg.by.item[,diversity.by.item:=(N.unique.by.item+alpha.id)/(N.tot.by.item + alpha.N/prior.diversity)]
 
    print("aggregating by id.item")
-   trans.agg.by.id.item=trans[,list (Mean.price.item.by.id.item=mean(price,trim=0.05),Med.price.by.id.item=median(price))
+   trans.agg.by.id.item=trans[,list (Mean.price.item.by.id.item=mean(price,trim=0.05),Med.price.by.id.item=median(price),
+                                     id=first(id),item=first(item))
                              ,by=id.item]
+
+   print("joining aggregates")
+
+   setkey(trans.agg.by.id.item,item)
+   setkey(trans.agg.by.item,item)
+   trans.agg.by.id.item=trans.agg.by.item[trans.agg.by.id.item]
+
+   setkey(trans.agg.by.id.item,id)
+   setkey(trans.agg.by.id,id)
+   trans.agg.by.id.item=trans.agg.by.id[trans.agg.by.id.item]
+
+   print("Calculating Discounts")
 
    trans.agg.by.id.item[,Price.Discount:=Mean.price.item.by.item-Mean.price.item.by.id.item]
    trans.agg.by.id.item[,Price.Discount.Percent:= Price.Discount/Mean.price.item.by.item]
-   trans.agg.by.id.item[,Mean.Discount:=mean(Price.discount,trim=0.05),by=id]
+
+   print("Calculating Mean discount for each customer")
+
+   trans.agg.by.id.item[,Mean.Discount:=mean(Price.Discount,trim=0.05),by=id]
 
    print(Sys.time()-start)
-   print("joining aggs")
-
-   setkey(hist,id)
-   setkey(trans.agg.by.id,id)
-   hist=trans.agg.by.id[hist]
-
-   setkey(hist,item)
-   setkey(trans.agg.by.item,item)
-   hist=trans.agg.by.item[hist]
+   print("joining aggs to training file")
 
    setkey(hist,id.item)
-   setkey(trans.agg.by.id.item)
+   setkey(trans.agg.by.id.item,id.item)
    hist=trans.agg.by.id.item[hist]
-
-   #now hist has aggregate info for both id and item and id.item
-   print("Calculating residuals in price") 
 
    print(Sys.time()-start)
    print("done")
