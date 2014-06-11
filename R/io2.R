@@ -1,10 +1,10 @@
 #AVSC
 library(data.table)
-library('bit64')
+library(bit64)
 
 #TODO: remove hardcode path
-#data.dir="/Users/davej/data/AVSC/"
-data.dir="/home/ubuntu/data/"
+data.dir="/Users/davej/data/AVSC/"
+#data.dir="/home/ubuntu/data/"
 
 read.offers<-function(){
   file=paste(data.dir,'offers.csv',sep='')
@@ -48,12 +48,15 @@ fast.agg<-function(){
 
    print("reading transactions")
    trans=fread(trans.file)
+   trans=trans[purchasequantity > 1 & purchaseamount > 0.01,]
+   trans[,price:=purchaseamount/purchasequantity]
+
    print(Sys.time()-start)
 
    print("adding item")
    add.item(trans)
 
-   print("aggregating by id and then item")
+   print("aggregating by id")
    
    trans.agg.by.id=trans[,list( 
    	N.tot.by.id=sum(purchasequantity),Spend.tot.by.id=sum(purchaseamount),
@@ -68,7 +71,7 @@ fast.agg<-function(){
    
    trans.agg.by.item=trans[,list( 
    	N.all.purchases.by.item=sum(purchasequantity),Spend.all.by.item=sum(purchaseamount)
-	N.unique.by.item=length(!duplicated(id))
+	N.unique.by.item=length(!duplicated(id)),Mean.price.item.by.item=mean(price,trim=0.05),Med.price.by.item=median(price))
 	),by=item]  
 
    alpha.id=100.0
@@ -76,8 +79,17 @@ fast.agg<-function(){
    prior.diversity=0.1
    trans.agg.by.item[,diversity.by.item:=(N.unique.by.item+alpha.id)/(N.tot.by.item + alpha.N/prior.diversity)]
 
+   print("aggregating by id.item")
+   trans.agg.by.id.item=trans[,list (Mean.price.item.by.id.item=mean(price,trim=0.05),Med.price.by.id.item=median(price))
+                             ,by=id.item]
+
+   trans.agg.by.id.item[,Price.Discount:=Mean.price.item.by.item-Mean.price.item.by.id.item]
+   trans.agg.by.id.item[,Price.Discount.Percent:= Price.Discount/Mean.price.item.by.item]
+   trans.agg.by.id.item[,Mean.Discount:=mean(Price.discount,trim=0.05),by=id]
+
    print(Sys.time()-start)
    print("joining aggs")
+
    setkey(hist,id)
    setkey(trans.agg.by.id,id)
    hist=trans.agg.by.id[hist]
@@ -86,7 +98,13 @@ fast.agg<-function(){
    setkey(trans.agg.by.item,item)
    hist=trans.agg.by.item[hist]
 
-   #now hist has aggregate info for both id and item
+   setkey(hist,id.item)
+   setkey(trans.agg.by.id.item)
+   hist=trans.agg.by.id.item[hist]
+
+   #now hist has aggregate info for both id and item and id.item
+   print("Calculating residuals in price") 
+
    print(Sys.time()-start)
    print("done")
    return(hist)

@@ -203,7 +203,7 @@ def hunt_for_features(offer_dict,frac=1.0,prompt=True,split_num=0):
     print "%s bastards"%len(bastards)
     print "%s unique shopper"%len(ids)
     
-def make_small_files_by_cust(name='transactions',ngroups=50,nmax=None):
+def make_small_files_by_cust(name='transactions',ngroups=100,nmax=None):
     '''Make a smaller file keeping only some customers but all data for those customers''' 
     if ngroups > 100:
         print 'ngroups must be <=100'

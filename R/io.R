@@ -3,8 +3,8 @@ library(data.table)
 library('bit64')
 
 #TODO: remove hardcode path
-#data.dir="/Users/davej/data/AVSC/"
-data.dir="/home/ubuntu/data/"
+data.dir="/Users/davej/data/AVSC/"
+#data.dir="/home/ubuntu/data/"
 
 read.offers<-function(){
   file=paste(data.dir,'offers.csv',sep='')
@@ -47,25 +47,28 @@ fast.agg<-function(){
    hist=read.history()
    #assert that customers only appear once
    stopifnot(nrow(hist) == length(unique(hist$id)))
+   
    print("reading transactions")
    trans=fread(trans.file)
    print(Sys.time()-start)
    print("adding item")
    add.item(trans)
-   print("aggregating")
+   print("aggregating by id.item")
    trans.agg=trans[,list(N.item.ids=.N,N.purchases=sum(purchasequantity),Tot.amount=sum(purchaseamount),
 	Min.price=min(purchaseamount), Max.price=max(purchaseamount), 
 	id=first(id),item=first(item)),
 	by=id.item]
 
+  #id ROLL UP  
+  
    print(Sys.time()-start)
-   print("reaggregating")
+   print("reaggregating , roll up to id")
    #roll up to id
    trans.agg.all=trans.agg[,list(N.unique=.N,N.purchases.all=sum(N.purchases),Tot.amount.all=sum(Tot.amount),
         Min.price.all=min(Min.price), Max.price.all=max(Max.price)),
         by=id]	
    print(Sys.time()-start)
-   print("joining")
+   print("joining to id rollup")
    setkey(hist,id.item)
    setkey(trans.agg,id.item)
    agg=trans.agg[hist]
@@ -73,14 +76,23 @@ fast.agg<-function(){
    setkey(agg,id)
    setkey(trans.agg.all)
    agg=trans.agg.all[agg]
-   print("done")
-   print("runtime")
-   print(Sys.time()-start)
+  
+	print(Sys.time()-start)
+	print("reaggregating , roll up by item")
+  
+  trans.agg.by.item=[]  
+  
+  
    #use Laplace smoothing for ratios
    diversity.prior=0.1
    alpha=30.0
-   agg[,diversity:=(N.purchases+alpha)/(N.purchases+alpha/diversity.prior)
-   return(agg)
+   agg[,diversity:=(N.purchases+alpha)/(N.purchases+alpha/diversity.prior)]
+
+	print("done")
+	print("runtime")
+	print(Sys.time()-start)
+    
+  return(agg)
 }
 
 
