@@ -118,7 +118,8 @@ def threshing(M_sparse,U,V,thresh=0.5):
     #return means not sums
     return (mean_data,mean_model,mean_cross)
 
-def validate_matrices(data,model,thresh=0.5,show=False):
+def validate_matrices(data,Model,thresh=0.5,show=False):
+    model=np.dot(Model.U,Model.V.transpose())
     rms=np.sqrt(((data-model)**2).mean())
     mean_data=data.mean()
     mean_model=model.mean()
@@ -126,16 +127,6 @@ def validate_matrices(data,model,thresh=0.5,show=False):
     sim=(model>thresh)*1
     mean_sim=sim.mean()
     mean_cross=(data*sim).mean()
-    #print 'memory ok?'
-    
-    #true_pos, true_neg, false_pos,false_neg RATES
-    #ROC is plot of x=fallout, y=recall
-    
-    #be memory efficient
-    #TP=( data*sim ).mean()
-    #TN=( (1-data)*(1-sim) ).mean()
-    #FP=( (1-data)*sim ).mean()
-    #FN=( data*(1-sim) ).mean()
 
     TP=mean_cross                                                                                
     TN=1-mean_data-mean_sim+mean_cross                                                          
@@ -156,7 +147,8 @@ def validate_matrices(data,model,thresh=0.5,show=False):
     return valid
 
 def read_mrec(mrec_file='reduced.v1_numbers_mrec_d5_iter9_reg0.0150.npz'):
-    file_name=PARS['data_dir']+mrec_file
+    #file_name=PARS['data_dir']+mrec_file
+    file_name=mrec_file
     data_file_name=file_name.split('_mrec_')[0]+'.csv'
     model=mrec.load_recommender(file_name)
     U=model.U
@@ -192,7 +184,7 @@ def test_mrec(d=5,num_iters=3,reg=0.015):
     file_format = "csv"
     #file shoule be csv, with: row,col,data
     #data may just be ones
-    filepath = PARS['data_dir']+"reduced.v1_numbers.csv"
+    filepath = PARS['data_dir']+"/reduced_row_col_data.csv"
     #filepath = PARS['data_dir']+"test_10_mill.csv" 
     outfile = make_mrec_outfile(filepath,d,num_iters,reg)
     print outfile
@@ -219,7 +211,7 @@ def test_mrec(d=5,num_iters=3,reg=0.015):
     print "validating"
     data,U,V=read_mrec(mrec_file=outfile)
     plot_file=outfile.replace('.npz','.png')
-    multi_thresh(data,model,thresh_list=None,outfile=plot_file)
+    multi_thresh(data,model,thresh_list=None,plot_file=plot_file)
     run_time=(time.time()-start)/60.0
     print "runtime: %0.3f minutes"%run_time
     print 'done'

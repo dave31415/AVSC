@@ -248,7 +248,7 @@ def make_small_files_by_cust(name='transactions',ngroups=100,nmax=None):
                 break
     print 'done'
         
-def numberize(file_name='/home/ubuntu/data/reduced.v1.csv',user_tag='id',item_tag='brand',item_func=None):
+def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',user_tag='id',item_tag='brand',item_func=None):
     '''Take a csv file with columns and pick out the users and items and convert them to unique numbers'''
     data_value=1.0
     outfile_name=file_name.replace('.csv','_numbers.csv')

@@ -20,34 +20,22 @@ read.history<-function(){
   #join on offer
   data=o[h]
   data[,repeater:=repeattrips>0]
-  data$offer=factor(data$offer)
-  data$category=factor(data$category)
-  data$company=factor(data$company)
-  data$id=factor(data$id)
-  data$brand=factor(data$brand)
-  data$chain=factor(data$chain)
-  data$market=factor(data$market)
-  data[,group:=as.integer(id) %% 100]
+  
+  data[,group:=as.numeric(id) %% 100]
   add.item(data)
-  #data[,item:=factor(paste(as.character(category),as.character(brand),sep='_'))]
   return(data)
 }
 
 add.item<-function(data){
-   data[,item.family:=factor(paste(
-      as.character(category),as.character(brand),as.character(company) 
-                           ,sep='_'))]
+   data[,item.family:=paste(category,brand,company ,chain,sep='_')]
   
-   data[,id.item.family:=factor(paste(as.character(id),as.character(item.family),sep='_'))]
+   data[,id.item.family:=paste(id,item.family,sep='_')]
   
    if ('productmeasure' %in% names(data) & 'productsize' %in% names(data)) {
 
-     data[,item:=factor(paste(
-     as.character(category),as.character(brand),as.character(company),
-     as.character(productsize),as.character(productmeasure)
-     ,sep='_'))]
+     data[,item:=paste(category,brand,company,chain,productsize,productmeasure,sep='_')]
   
-     data[,id.item:=factor(paste(as.character(id),as.character(item),sep='_'))]
+     data[,id.item:=paste(id,item,sep='_')]
     }
 }
 
@@ -118,26 +106,23 @@ fast.agg<-function(){
    print("Aggregating id.item down to less granular id.item.family")
    #add other stuff ???
    trans.agg.by.id.item.family = trans.agg.by.id.item[,list(
-     Mean.Discount.Percent=mean(Price.Discount.Percent)
+     Mean.Discount.Percent=mean(Price.Discount.Percent,na.rm=T),
+     id=first(id)
      ),by=id.item.family]    
-
-   print(Sys.time()-start)
-   #this join may make less sense for item.family 
-   print("joining aggs to training file")
-   setkey(hist,id.item.family)
-   setkey(trans.agg.by.id.item,id.item.family)
-   hist=trans.agg.by.id.item[hist]
 
    print("joining Mean.Discount.Percent to training")
   
-   setkey(hist,id.item.family)
-   setkey(trans.agg.by.id.item.family,id.item.family)  
-   hist=trans.agg.by.id.item.family[hist]
+   agg=trans.agg.by.id.item.family[,list(Mean.Discount.Percent.By.Customer=mean(Mean.Discount.Percent)),by=id]
 
-   agg[,Mean.Discount.Percent.By.Customer=mean(Mean.Discount.Percent),by=id]
+   setkey(hist,id)
+   setkey(agg,id)  
+   hist=agg[hist]
 
    print(Sys.time()-start)
    print("done")
+   p<-ggplot(hist,aes(Mean.Discount.Percent.By.Customer,fill=repeater))+geom_density(alpha=0.2)
+   p+xlim(-20,20)
+
    return(hist)
 }
 
