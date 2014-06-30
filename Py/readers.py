@@ -82,9 +82,10 @@ def make_customer_offer_lookup(name='history',frac=1.0):
         offer_history_dict[cust_id]=offer
     return offer_history_dict
     
-def make_item(offer):
+def make_item_cat_brand(offer):
     #defines an item
     return offer['category']+'_'+offer['brand']
+    
     
 def make_naive_bayes_classifier(alpha=5.0,prior_ratio=3.0):
     alpha=float(alpha)
@@ -248,12 +249,24 @@ def make_small_files_by_cust(name='transactions',ngroups=100,nmax=None):
                 break
     print 'done'
         
-def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',user_tag='id',item_tag='brand',item_func=None):
+def make_item_category_company_brand(offer):
+    #defines an item
+    return "_".join([offer['category'],offer['company'],offer['brand']])
+    
+def scale_number(x,xmax=7.0):
+    #transform the count to a float
+    #cap it at some maximum and use log scale, maps 0->0 and 1->1
+    #with xmax=7, the max will be 3.0
+    xx=max(min(x,xmax),0)
+    return np.log(1.0+xx)/np.log(2.0)
+
+        
+def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
+        user_tag='id',item_tag='brand',item_func=make_item_category_company_brand):
     '''Take a csv file with columns and pick out the users and items and convert them to unique numbers'''
-    data_value=1.0
-    outfile_name=file_name.replace('.csv','_numbers.csv')
-    dictfile_user=file_name.replace('.csv','_dict_user.csv')
-    dictfile_item=file_name.replace('.csv','_dict_item.csv')
+    outfile_name=file_name.replace('.csv','_row_col_num.csv')
+    dictfile_user=file_name.replace('.csv','_dict_user_count.csv')
+    dictfile_item=file_name.replace('.csv','_dict_item_count.csv')
     fout=open(outfile_name,'w')
     fdict_user=open(dictfile_user,'w')
     fdict_item=open(dictfile_item,'w')
@@ -265,6 +278,8 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',user_tag='id',item_
     item_num=1
     user_item_list=[]
     line_num=0
+    Count=Counter()
+    
     for line in s:
         line_num+=1
         if line_num % 10000 == 0:
@@ -287,11 +302,18 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',user_tag='id',item_
             fdict_item.write(dline)
             item_num+=1  
         
-        outline=str(user_dict[user])+','+str(item_dict[item])+','+str(data_value)+'\n'
-        fout.write(outline)
+        key=(user_dict[user],item_dict[item])
+        Count[key]+=int(line['purchasequantity'])
     
-    fout.close()
     fdict_user.close()
-    fdict_item.close()  
+    fdict_item.close() 
+    nkeys=len(Count)
+    print "Counted %s keys" % nkeys
+    print "Writing counter to file"
+    for key,count in Count.iteritems():
+        outline=','.join([str(key[0]),str(key[1]),str(scale_number(count))])+'\n'
+        fout.write(outline)   
+    fout.close()
+    print 'Done'
 
 

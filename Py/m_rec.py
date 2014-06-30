@@ -147,7 +147,6 @@ def validate_matrices(data,Model,thresh=0.5,show=False):
     return valid
 
 def read_mrec(mrec_file='reduced.v1_numbers_mrec_d5_iter9_reg0.0150.npz'):
-    #file_name=PARS['data_dir']+mrec_file
     file_name=mrec_file
     data_file_name=file_name.split('_mrec_')[0]+'.csv'
     model=mrec.load_recommender(file_name)
@@ -158,7 +157,6 @@ def read_mrec(mrec_file='reduced.v1_numbers_mrec_d5_iter9_reg0.0150.npz'):
     shape=(U.shape[0],V.shape[0])
     data_matrix=np.ndarray(shape,dtype=int)
     line_num=0
-    #data_list=[]
     for line in open(data_file_name,'r'):
         line_num+=1
         if line_num % 1000000 ==0 : print line_num
@@ -166,8 +164,6 @@ def read_mrec(mrec_file='reduced.v1_numbers_mrec_d5_iter9_reg0.0150.npz'):
         row=int(dat[0])-1
         col=int(dat[1])-1
         val=int(float(dat[2]))
-        assert(val == 1)
-        #data_list.append((row,col))
         data_matrix[row,col]=val
     return (data_matrix,U,V)
 
@@ -184,7 +180,7 @@ def test_mrec(d=5,num_iters=3,reg=0.015):
     file_format = "csv"
     #file shoule be csv, with: row,col,data
     #data may just be ones
-    filepath = PARS['data_dir']+"/reduced_row_col_data.csv"
+    filepath = PARS['data_dir']+"/reduced_row_col_num.csv"
     #filepath = PARS['data_dir']+"test_10_mill.csv" 
     outfile = make_mrec_outfile(filepath,d,num_iters,reg)
     print outfile
