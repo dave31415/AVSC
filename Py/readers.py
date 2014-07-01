@@ -265,8 +265,8 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
         user_tag='id',item_tag='brand',item_func=make_item_category_company_brand):
     '''Take a csv file with columns and pick out the users and items and convert them to unique numbers'''
     outfile_name=file_name.replace('.csv','_row_col_num.csv')
-    dictfile_user=file_name.replace('.csv','_dict_user_count.csv')
-    dictfile_item=file_name.replace('.csv','_dict_item_count.csv')
+    dictfile_user=file_name.replace('.csv','_dict_user.csv')
+    dictfile_item=file_name.replace('.csv','_dict_item.csv')
     fout=open(outfile_name,'w')
     fdict_user=open(dictfile_user,'w')
     fdict_item=open(dictfile_item,'w')
@@ -300,10 +300,11 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
             item_dict[item]=item_num
             dline=str(item)+','+str(item_num)+'\n'
             fdict_item.write(dline)
-            item_num+=1  
+            item_num+=2  
         
         key=(user_dict[user],item_dict[item])
-        Count[key]+=int(line['purchasequantity'])
+        Count[key]+= 1
+        #Count[key]+=int(line['purchasequantity'])
     
     fdict_user.close()
     fdict_item.close() 
@@ -311,9 +312,15 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
     print "Counted %s keys" % nkeys
     print "Writing counter to file"
     for key,count in Count.iteritems():
-        outline=','.join([str(key[0]),str(key[1]),str(scale_number(count))])+'\n'
+        count_num=0
+        if count > 1: count_num=1
+        user=str(key[0])
+        superitem=str(key[1]+count_num) 
+        outline=','.join([user,superitem,'1.0'])+'\n'
         fout.write(outline)   
     fout.close()
     print 'Done'
+
+
 
 

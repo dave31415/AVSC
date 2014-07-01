@@ -1,12 +1,13 @@
 import matplotlib
 matplotlib.use('Agg') # Plots go to files not screen    
 
-from readers import PARS
+from readers import PARS, make_item_category_company_brand,make_customer_offer_lookup
 import time
 from mrec import load_recommender
 import numpy as np
 import mrec
 import matplotlib.pyplot as plt
+import csv
 
 def make_mrec_outfile(infile,d,num_iters,reg):
     suffix="_mrec_d%s_iter%s_reg%0.4f.npz"%(d,num_iters,reg)
@@ -42,7 +43,7 @@ def check_validation(outfile='reduced.v1_numbers_mrec_d5_iter15_reg0.0150.npz'):
 
 def multi_thresh(data,model,thresh_list=None,plot_file=None):
     import pickle
-    if thresh_list==None: thresh_list=np.linspace(-0.2,1.0,20)
+    if thresh_list==None: thresh_list=np.linspace(0.1,1.,7)
     vals=[]
     print " thresh  precision  recall  fscore"
     print "-----------------------------------------"
@@ -204,6 +205,8 @@ def test_mrec(d=5,num_iters=3,reg=0.015):
     print "wrote model to: %s"%outfile
     print time.time()-start
 
+    return
+
     print "validating"
     data,U,V=read_mrec(mrec_file=outfile)
     plot_file=outfile.replace('.npz','.png')
@@ -211,6 +214,82 @@ def test_mrec(d=5,num_iters=3,reg=0.015):
     run_time=(time.time()-start)/60.0
     print "runtime: %0.3f minutes"%run_time
     print 'done'
+
+class mf_model:
+    def __init__(self,d=5,num_iters=3,reg=0.015):
+        #TODO: clean this up
+        filepath = PARS['data_dir']+"/reduced_row_col_num.csv"
+        file_name='/Users/davej/data/AVSC/reduced.csv'
+        
+        self.model_file = make_mrec_outfile(filepath,d=d,num_iters=num_iters,reg=reg)
+        self.dictfile_user=file_name.replace('.csv','_dict_user.csv')
+        self.dictfile_item=file_name.replace('.csv','_dict_item.csv')
+        print "loading model in : %s" % self.model_file
+        self.model=load_recommender(self.model_file)
+        print "loading dictionaries"
+        self.dict_user=dict(list(csv.reader(open(self.dictfile_user,'rU'))))
+        self.dict_item=dict(list(csv.reader(open(self.dictfile_item,'rU'))))
+    
+    def score(self,offer):
+        score_min=1e-8   # greater than zero
+        score_max=2.0   # might not be needed, > 1 is rare
+        priors=[2.0,1.0]
+        bad=False
+        user=offer['id']
+        item=make_item_category_company_brand(offer)
+        if user not in self.dict_user:
+            print 'Warning- unknown user : %s' % user
+            bad=True
+        if item not in self.dict_item:
+            print 'Warning- unknown item : %s' % item
+            bad=True  
+            
+        if bad :
+            scores=[score_min,score_min]
+            prob=(scores[1]*priors[1])/(priors[0]*scores[0]+priors[1]*scores[1])    
+            scores.append(prob)
+            return scores
+            
+        user_num=int(self.dict_user[user])
+        item_num=int(self.dict_item[item])
+        scores=[]
+        for i in range(2):
+            row=user_num
+            col=item_num+i
+            u=self.model.U[row,:]
+            v=self.model.V[col,:]
+            raw_score=np.dot(u,v)
+            score=min(max(raw_score,score_min),score_max)
+            scores.append(score)
+        prob=(scores[1]*priors[1])/(priors[0]*scores[0]+priors[1]*scores[1])    
+        scores.append(prob)
+        return scores 
+
+def test_mf_train():
+    train=make_customer_offer_lookup(name='history')
+    model=mf_model()
+    
+    dic={}
+    for cust, data in train.iteritems() :
+        scores=model.score(data)
+        print data['repeater'],scores
+        data['score_1']=scores[0]
+        data['score_gt_1']=scores[1]
+        data['prob']=scores[2]
+        dic[cust]=data
+    return dic
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
 
 
 
