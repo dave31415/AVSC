@@ -300,11 +300,10 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
             item_dict[item]=item_num
             dline=str(item)+','+str(item_num)+'\n'
             fdict_item.write(dline)
-            item_num+=2  
+            item_num+=1  
         
         key=(user_dict[user],item_dict[item])
         Count[key]+= 1
-        #Count[key]+=int(line['purchasequantity'])
     
     fdict_user.close()
     fdict_item.close() 
@@ -312,11 +311,10 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
     print "Counted %s keys" % nkeys
     print "Writing counter to file"
     for key,count in Count.iteritems():
-        count_num=0
-        if count > 1: count_num=1
+        scaled_count=scale_number(count)
         user=str(key[0])
-        superitem=str(key[1]+count_num) 
-        outline=','.join([user,superitem,'1.0'])+'\n'
+        item=str(key[1]) 
+        outline=','.join([user,item,str(scaled_count)])+'\n'
         fout.write(outline)   
     fout.close()
     print 'Done'

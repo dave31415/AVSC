@@ -2,6 +2,7 @@ import matplotlib
 matplotlib.use('Agg') # Plots go to files not screen    
 
 from readers import PARS, make_item_category_company_brand,make_customer_offer_lookup
+from readers import data_files
 import time
 from mrec import load_recommender
 import numpy as np
@@ -168,7 +169,7 @@ def read_mrec(mrec_file='reduced.v1_numbers_mrec_d5_iter9_reg0.0150.npz'):
         data_matrix[row,col]=val
     return (data_matrix,U,V)
 
-def test_mrec(d=5,num_iters=3,reg=0.015):
+def run_mrec(d=10,num_iters=4,reg=0.015):
     #d is dimension of subspace, i.e. groups
     import sys
     from mrec import load_sparse_matrix, save_recommender
@@ -216,7 +217,7 @@ def test_mrec(d=5,num_iters=3,reg=0.015):
     print 'done'
 
 class mf_model:
-    def __init__(self,d=5,num_iters=3,reg=0.015):
+    def __init__(self,d=10,num_iters=4,reg=0.015):
         #TODO: clean this up
         filepath = PARS['data_dir']+"/reduced_row_col_num.csv"
         file_name='/Users/davej/data/AVSC/reduced.csv'
@@ -230,10 +231,7 @@ class mf_model:
         self.dict_user=dict(list(csv.reader(open(self.dictfile_user,'rU'))))
         self.dict_item=dict(list(csv.reader(open(self.dictfile_item,'rU'))))
     
-    def score(self,offer):
-        score_min=1e-8   # greater than zero
-        score_max=2.0   # might not be needed, > 1 is rare
-        priors=[2.0,1.0]
+    def features(self,offer):
         bad=False
         user=offer['id']
         item=make_item_category_company_brand(offer)
@@ -245,25 +243,53 @@ class mf_model:
             bad=True  
             
         if bad :
-            scores=[score_min,score_min]
-            prob=(scores[1]*priors[1])/(priors[0]*scores[0]+priors[1]*scores[1])    
-            scores.append(prob)
-            return scores
+            return np.zeros(self.model.d)
             
         user_num=int(self.dict_user[user])
         item_num=int(self.dict_item[item])
+        row=user_num-1
+        col=item_num-1
+        u=self.model.U[row,:]
+        v=self.model.V[col,:]
+        #return the point-wise product NOT dot product
+        return u*v
+
+    def score(self,offer):
         scores=[]
-        for i in range(2):
-            row=user_num
-            col=item_num+i
-            u=self.model.U[row,:]
-            v=self.model.V[col,:]
-            raw_score=np.dot(u,v)
-            score=min(max(raw_score,score_min),score_max)
-            scores.append(score)
-        prob=(scores[1]*priors[1])/(priors[0]*scores[0]+priors[1]*scores[1])    
-        scores.append(prob)
-        return scores 
+        score_min=1e-8   # greater than zero
+        score_max=2.0   # might not be needed, > 1 is rare
+        priors=[2.0,1.0]
+        features=self.features(offer)
+        raw_score=features.sum()
+        score=min(max(raw_score,score_min),score_max)
+        return score
+
+    def add_features_to_dics(self,data):
+        #data a list of dictionaries
+        ndim=self.model.d
+        feature_names=['MF'+str(i) for i in range(ndim)]
+        
+        for line_num,d in enumerate(data):
+            features=self.features(d)
+            #add to dict
+            for i in range(ndim): d[feature_names[i]]=features[i]
+            #write the new row with features
+
+    def add_features_to_files(self,name='history'):
+        file=data_files(name)
+        outfile=file.replace('.csv','_with_MF_features.csv')
+        train=make_customer_offer_lookup(name).values()
+        keys=train[0].keys()
+        self.add_features_to_dics(train)
+        new_keys=train[0].keys()
+        assert(len(new_keys) != len(keys))
+        W=csv.DictWriter(open(outfile,'w'),new_keys)
+        W.writeheader()
+        W.writerows(train)
+
+    def add_features_to_both(self):
+        self.add_features_to_files(name='history')
+        self.add_features_to_files(name='history_test')
 
 def test_mf_train():
     train=make_customer_offer_lookup(name='history')
@@ -271,11 +297,8 @@ def test_mf_train():
     
     dic={}
     for cust, data in train.iteritems() :
-        scores=model.score(data)
-        print data['repeater'],scores
-        data['score_1']=scores[0]
-        data['score_gt_1']=scores[1]
-        data['prob']=scores[2]
+        score=model.score(data)
+        data['score']=score
         dic[cust]=data
     return dic
     
