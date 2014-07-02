@@ -42,4 +42,23 @@ prep<-function(data){
   return(d)
 }
 
-
+run.kmeans<-function(data,k=15){
+  ylim=c(15,65)
+  d=data[,list(MF0,MF1,MF2,MF3,MF4,MF5,MF6,MF7,MF8,MF9)]
+  km=kmeans(d,k,iter.max=50,nstart=1)
+  print(nrow(d))
+  print(length(km$cluster))
+  data[,cluster:=km$cluster]
+  data[,random.cluster:=sample(cluster)]
+  stats=data[,list(N=.N,frac.repeat=mean(repeater=='t')),by=cluster]
+  stats.random=data[,list(N=.N,frac.repeat=mean(repeater=='t')),by=random.cluster]
+  stats=stats[order(frac.repeat)]
+  stats[,frac.err:=1.0/sqrt(N*frac.repeat)]
+  stats.random=stats.random[order(frac.repeat)]
+  par(mfrow=c(1,2))
+  barplot(stats$frac.repeat*100.0,ylab="% Repeater",xlab="k means cluster #")
+  barplot(stats.random$frac.repeat*100.0,ylab="% Repeater",xlab="randomized k means cluster #")
+  #p<-ggplot(stats,aes(frac.repeat))+geom_bar(stat="identity")
+  #print(p)
+  return(stats)
+}

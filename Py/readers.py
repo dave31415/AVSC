@@ -23,7 +23,9 @@ def data_files(name=None):
             "history_test": data_dir+"testHistory.csv",
             "sample_sub": data_dir+"sampleSubmission.csv",
             "transactions": data_dir+"transactions.csv",
-            "leaderboard":data_dir+"leaderboard_May12.csv"
+            "leaderboard":data_dir+"leaderboard_May12.csv",
+            "reduced": data_dir+"reduced.csv",
+            "train_mf":data_dir+"trainHistory_with_MF_features.csv"
             }	
     #for key, file in files.iteritems(): assert(os.path.exists(file))
     if name : return files[name]
@@ -260,17 +262,17 @@ def scale_number_old(x,xmax=7.0):
     xx=max(min(x,xmax),0)
     return np.log(1.0+xx)/np.log(2.0)
 
-def scale_number(x):
+def scale_number(x,cutoff=-100):
     #transform the count to a float
     #use log scale, maps 0->0 and 1->1
     beta=1.0
     xmax=1e9
+    if x < cutoff: x=0.0
     xx=max(min(x,xmax),0)
     return np.log(1.0+xx/beta)/np.log(1.0+1.0/beta)
-
         
 def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
-        user_tag='id',item_tag='brand',item_func=make_item_category_company_brand):
+        user_tag='id',item_func=make_item_category_company_brand):
     '''Take a csv file with columns and pick out the users and items and convert them to unique numbers'''
     outfile_name=file_name.replace('.csv','_row_col_num.csv')
     dictfile_user=file_name.replace('.csv','_dict_user.csv')
@@ -293,10 +295,7 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
         if line_num % 10000 == 0:
             print "line num: %s"%line_num
         user=line[user_tag]
-        if item_func:
-            item=item_func(line)
-        else:
-            item=line[item_tag]
+        item=item_func(line)
             
         if user not in user_dict:
             user_dict[user]=user_num   

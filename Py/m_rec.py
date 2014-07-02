@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use('Agg') # Plots go to files not screen    
 
 from readers import PARS, make_item_category_company_brand,make_customer_offer_lookup
-from readers import data_files
+from readers import data_files,stream_data
 import time
 from mrec import load_recommender
 import numpy as np
@@ -169,7 +169,20 @@ def read_mrec(mrec_file='reduced.v1_numbers_mrec_d5_iter9_reg0.0150.npz'):
         data_matrix[row,col]=val
     return (data_matrix,U,V)
 
-def run_mrec(d=10,num_iters=4,reg=0.015):
+def cut_number_file(cutoff=1.5):
+    filepath = PARS['data_dir']+"/reduced_row_col_num.csv"
+    f=open(filepath,'rU')
+    outfile=filepath.replace('.csv','_cutoff_%s.csv'%cutoff)
+    fout=open(outfile,'w')
+    for line in f:
+        data=line.strip().split(',')
+        num=float(data[2])
+        if num> cutoff: fout.write(line)
+    f.close()
+    fout.close()
+    
+
+def run_mrec(d=10,num_iters=4,reg=0.02):
     #d is dimension of subspace, i.e. groups
     import sys
     from mrec import load_sparse_matrix, save_recommender
@@ -182,7 +195,7 @@ def run_mrec(d=10,num_iters=4,reg=0.015):
     file_format = "csv"
     #file shoule be csv, with: row,col,data
     #data may just be ones
-    filepath = PARS['data_dir']+"/reduced_row_col_num.csv"
+    filepath = PARS['data_dir']+"/reduced_row_col_num_cutoff_1.5.csv"
     #filepath = PARS['data_dir']+"test_10_mill.csv" 
     outfile = make_mrec_outfile(filepath,d,num_iters,reg)
     print outfile
@@ -216,10 +229,13 @@ def run_mrec(d=10,num_iters=4,reg=0.015):
     print "runtime: %0.3f minutes"%run_time
     print 'done'
 
+class junk:
+    pass
+
 class mf_model:
-    def __init__(self,d=10,num_iters=4,reg=0.015):
+    def __init__(self,d=10,num_iters=4,reg=0.02):
         #TODO: clean this up
-        filepath = PARS['data_dir']+"/reduced_row_col_num.csv"
+        filepath = PARS['data_dir']+"/reduced_row_col_num_cutoff_1.5.csv"
         file_name='/Users/davej/data/AVSC/reduced.csv'
         
         self.model_file = make_mrec_outfile(filepath,d=d,num_iters=num_iters,reg=reg)
@@ -230,6 +246,7 @@ class mf_model:
         print "loading dictionaries"
         self.dict_user=dict(list(csv.reader(open(self.dictfile_user,'rU'))))
         self.dict_item=dict(list(csv.reader(open(self.dictfile_item,'rU'))))
+        self.nbad=0
     
     def features(self,offer):
         bad=False
@@ -243,6 +260,7 @@ class mf_model:
             bad=True  
             
         if bad :
+            self.nbad+=1
             return np.zeros(self.model.d)
             
         user_num=int(self.dict_user[user])
@@ -257,39 +275,62 @@ class mf_model:
     def score(self,offer):
         scores=[]
         score_min=1e-8   # greater than zero
-        score_max=2.0   # might not be needed, > 1 is rare
-        priors=[2.0,1.0]
+        score_max=10.0   # might not be needed
         features=self.features(offer)
         raw_score=features.sum()
         score=min(max(raw_score,score_min),score_max)
         return score
 
-    def add_features_to_dics(self,data):
-        #data a list of dictionaries
+    def add_features_to_dic(self,data):
+        #data a dictionary
         ndim=self.model.d
         feature_names=['MF'+str(i) for i in range(ndim)]
+        feature_names.append('score')
+        features=self.features(data)
+        score=features.sum()
+        features=list(features)
+        features.append(score)
+        #add to dict
+        #make float with trimmed digits
+        features=["%0.6f"%i for i in features]
         
-        for line_num,d in enumerate(data):
-            features=self.features(d)
-            #add to dict
-            for i in range(ndim): d[feature_names[i]]=features[i]
-            #write the new row with features
+        for i in range(ndim+1): data[feature_names[i]]=features[i]
+        #modified state, no need to return
 
     def add_features_to_files(self,name='history'):
+        self.nbad=0
         file=data_files(name)
         outfile=file.replace('.csv','_with_MF_features.csv')
-        train=make_customer_offer_lookup(name).values()
-        keys=train[0].keys()
-        self.add_features_to_dics(train)
-        new_keys=train[0].keys()
-        assert(len(new_keys) != len(keys))
-        W=csv.DictWriter(open(outfile,'w'),new_keys)
-        W.writeheader()
-        W.writerows(train)
+        if name == 'reduced':
+            data=stream_data('reduced')
+        else :
+            data=make_customer_offer_lookup(name).itervalues()
+            
+        key_names=None
+        nlines=0
+        custs=set()
+        for dat in data:
+            nlines+=1
+            custs.add(dat['id'])
+            self.add_features_to_dic(dat)
+            if not key_names:
+                #first one
+                key_names=dat.keys()
+                W=csv.DictWriter(open(outfile,'w'),key_names)
+                W.writeheader()
+            
+            W.writerow(dat)
+        print 'nlines : %s' % nlines    
+        print 'n customers : %s' % len(custs)
+        print 'nbad : %s' % self.nbad
+        self.nbad=0
 
     def add_features_to_both(self):
         self.add_features_to_files(name='history')
         self.add_features_to_files(name='history_test')
+    
+    def hello(self):
+        print "hello there"
 
 def test_mf_train():
     train=make_customer_offer_lookup(name='history')
