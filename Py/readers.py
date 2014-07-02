@@ -253,12 +253,20 @@ def make_item_category_company_brand(offer):
     #defines an item
     return "_".join([offer['category'],offer['company'],offer['brand']])
     
-def scale_number(x,xmax=7.0):
+def scale_number_old(x,xmax=7.0):
     #transform the count to a float
     #cap it at some maximum and use log scale, maps 0->0 and 1->1
     #with xmax=7, the max will be 3.0
     xx=max(min(x,xmax),0)
     return np.log(1.0+xx)/np.log(2.0)
+
+def scale_number(x):
+    #transform the count to a float
+    #use log scale, maps 0->0 and 1->1
+    beta=1.0
+    xmax=1e9
+    xx=max(min(x,xmax),0)
+    return np.log(1.0+xx/beta)/np.log(1.0+1.0/beta)
 
         
 def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
