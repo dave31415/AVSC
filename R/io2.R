@@ -126,7 +126,6 @@ fast.agg<-function(){
    return(hist)
 }
 
-
 cust.count<-function(){
    start=Sys.time()
    trans.file=paste(data.dir,'reduced.csv',sep='')
@@ -142,5 +141,13 @@ cust.count<-function(){
    print("done")
    print(Sys.time()-start)
 }
+
+roc<-function(prob,actual){
+  prob.min=min(prob)
+  prob.max=max(prob)
+  
+}
+
+
 
    

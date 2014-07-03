@@ -1,8 +1,9 @@
 #average price per item
 library(data.table)
 library(ggplot2)
+library(caTools)
 
-read<-function(tmax=5) {
+read<-function(tmax=5,train=T) {
   file="/Users/davej/data/AVSC/trainHistory_with_MF_features.csv"
   data=data.table(read.csv(file,as.is=T))
   data[,Repeat.Trips:=ifelse(repeattrips<tmax,repeattrips,tmax)]
@@ -42,8 +43,8 @@ prep<-function(data){
   return(d)
 }
 
-run.kmeans<-function(data,k=15){
-  ylim=c(15,65)
+run.kmeans<-function(data,k=100){
+  ylim=c(0,70)
   d=data[,list(MF0,MF1,MF2,MF3,MF4,MF5,MF6,MF7,MF8,MF9)]
   km=kmeans(d,k,iter.max=50,nstart=1)
   print(nrow(d))
@@ -55,10 +56,64 @@ run.kmeans<-function(data,k=15){
   stats=stats[order(frac.repeat)]
   stats[,frac.err:=1.0/sqrt(N*frac.repeat)]
   stats.random=stats.random[order(frac.repeat)]
-  par(mfrow=c(1,2))
-  barplot(stats$frac.repeat*100.0,ylab="% Repeater",xlab="k means cluster #")
-  barplot(stats.random$frac.repeat*100.0,ylab="% Repeater",xlab="randomized k means cluster #")
-  #p<-ggplot(stats,aes(frac.repeat))+geom_bar(stat="identity")
-  #print(p)
-  return(stats)
+
+  par(mfrow=c(2,2))
+  barplot(stats$frac.repeat*100.0,ylab="% Repeater",xlab="k means cluster #",ylim=ylim)
+  barplot(stats.random$frac.repeat*100.0,ylab="% Repeater",xlab="randomized k means cluster #",ylim=ylim)
+ 
+  setkey(stats,cluster)
+  setkey(data,cluster)
+  data=stats[data]
+  roc(data$frac.repeat,data$repeater=='t')
+  stats.random$cluster=stats.random$random.cluster
+  setkey(stats.random,cluster)
+  data.random=stats.random[data]
+  roc(data.random$frac.repeat,data.random$repeater=='t',tit='(random)')
+  return(list(data=data,km=km))
 }
+
+roc<-function(prob,actual,tit=''){
+  # ROC curve is x=False Positive rate, y= True Positive rate
+  num=50
+  prob.min=min(prob)
+  prob.max=max(prob)
+  ord=rev(order(prob))
+  x=prob[ord]
+  a=actual[ord]
+  not.a=!a
+  a.cum=cumsum(a)
+  not.a.cum=cumsum(not.a)
+  a.tot=sum(a)
+  not.a.tot=sum(not.a)
+  
+  TP=a.cum
+  FP=not.a.cum
+  
+  #these not needed, I guess
+  TN=not.a.tot-not.a.cum
+  FN=a.tot-a.cum
+  
+  TPR=TP/a.tot
+  FPR=FP/not.a.tot
+ 
+  TPR=c(0,TPR,1)
+  FPR=c(0,FPR,1)
+  
+  auroc=trapz(FPR,TPR)
+  title=paste("AUROC: ",strtrim(auroc,6),tit)
+  print(title)
+  plot(FPR,TPR,type='l')
+  title(main=title)
+  #lines(FPR,TPR)
+  lines(c(0,1),c(0,1),col="red",lty=2)
+}
+
+score.kmeans<-function(k=60){
+  data=read()
+  dk=run.kmeans(data,k=k)
+  data=dk$data
+  km=dk$km
+  clust=predict(km,data)
+}
+
+

@@ -9,6 +9,7 @@ import numpy as np
 import mrec
 import matplotlib.pyplot as plt
 import csv
+from scipy.cluster.vq import kmeans,vq
 
 def make_mrec_outfile(infile,d,num_iters,reg):
     suffix="_mrec_d%s_iter%s_reg%0.4f.npz"%(d,num_iters,reg)
@@ -179,8 +180,7 @@ def cut_number_file(cutoff=1.5):
         num=float(data[2])
         if num> cutoff: fout.write(line)
     f.close()
-    fout.close()
-    
+    fout.close()    
 
 def run_mrec(d=10,num_iters=4,reg=0.02):
     #d is dimension of subspace, i.e. groups
@@ -267,8 +267,13 @@ class mf_model:
         item_num=int(self.dict_item[item])
         row=user_num-1
         col=item_num-1
-        u=self.model.U[row,:]
-        v=self.model.V[col,:]
+        if row < self.model.U.shape[0] and col < self.model.U.shape[0]:
+            u=self.model.U[row,:]
+            v=self.model.V[col,:]
+        else :
+            print "Warning - row=%s, col=%s not in range of data" % (row,col)
+            u=np.zeros(self.model.d)
+            v=np.zeros(self.model.d)
         #return the point-wise product NOT dot product
         return u*v
 
@@ -292,12 +297,13 @@ class mf_model:
         features.append(score)
         #add to dict
         #make float with trimmed digits
-        features=["%0.6f"%i for i in features]
+        features_str=["%0.6f"%i for i in features]
         
-        for i in range(ndim+1): data[feature_names[i]]=features[i]
+        for i in range(ndim+1): data[feature_names[i]]=features_str[i]
         #modified state, no need to return
+        return features[0:-1]
 
-    def add_features_to_files(self,name='history'):
+    def add_features_to_files(self,name='history',return_features=False):
         self.nbad=0
         file=data_files(name)
         outfile=file.replace('.csv','_with_MF_features.csv')
@@ -309,10 +315,13 @@ class mf_model:
         key_names=None
         nlines=0
         custs=set()
+        feature_list=[]
         for dat in data:
             nlines+=1
             custs.add(dat['id'])
-            self.add_features_to_dic(dat)
+            features=self.add_features_to_dic(dat)
+            
+            if return_features: feature_list.append(features)
             if not key_names:
                 #first one
                 key_names=dat.keys()
@@ -324,6 +333,7 @@ class mf_model:
         print 'n customers : %s' % len(custs)
         print 'nbad : %s' % self.nbad
         self.nbad=0
+        if return_features: return(np.array(feature_list))
 
     def add_features_to_both(self):
         self.add_features_to_files(name='history')
@@ -331,6 +341,19 @@ class mf_model:
     
     def hello(self):
         print "hello there"
+
+    def kmeans(self,name='history',k=35):
+        features=self.add_features_to_files(name=name,return_features=True)
+        print "Running kmeans"
+        centroids,_ = kmeans(features,k)
+        # assign each sample to a cluster
+        self.centroids=centroids
+        idx=self.kmeans_assign(features)
+        print "done kmeans"
+        
+    def kmeans_assign(self,features):
+        idx,_ = vq(features,self.centroids)
+        return idx
 
 def test_mf_train():
     train=make_customer_offer_lookup(name='history')
