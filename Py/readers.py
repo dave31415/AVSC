@@ -7,6 +7,7 @@ from collections import Counter
 import numpy as np
 import scipy
 from matplotlib import pylab as plt
+from scipy.integrate import cumtrapz
 
 #Read json data from Parameter file, for now, just need data_dir
 JSONDC=json.JSONDecoder()
@@ -25,7 +26,8 @@ def data_files(name=None):
             "transactions": data_dir+"transactions.csv",
             "leaderboard":data_dir+"leaderboard_May12.csv",
             "reduced": data_dir+"reduced.csv",
-            "train_mf":data_dir+"trainHistory_with_MF_features.csv"
+            "train_mf":data_dir+"trainHistory_with_MF_features.csv",
+            "frac":data_dir+"reduced_MF_kmeans.csv"
             }	
     #for key, file in files.iteritems(): assert(os.path.exists(file))
     if name : return files[name]
@@ -88,14 +90,14 @@ def make_item_cat_brand(offer):
     #defines an item
     return offer['category']+'_'+offer['brand']
     
-    
 def make_naive_bayes_classifier(alpha=5.0,prior_ratio=3.0):
     alpha=float(alpha)
     data=data=[v for v in make_customer_offer_lookup().values()]
     count_repeat=Counter()
     count_norepeat=Counter()
     for offer in data:
-        item=make_item(offer)
+        #item=make_item(offer)
+        item=make_item_category_company_brand(offer)
         if offer['repeater'] == 't':
             count_repeat[item]+=1
         else :
@@ -107,18 +109,21 @@ def make_naive_bayes_classifier(alpha=5.0,prior_ratio=3.0):
     
     def bayes_classify(x):
         #takes any structure that can be handed to make_item
-        item=make_item(x)
+        #item=make_item(x)
+        item=make_item_category_company_brand(x)
         #additive smoothing
         raw_repeat=count_repeat[item]
         raw_norepeat=count_norepeat[item]
         prob_item_given_repeat=(raw_repeat +alpha)/(num_repeat+alpha*num_items)
         prob_item_given_norepeat=(raw_norepeat +alpha)/(num_norepeat+alpha*num_items)
         Like_Ratio=prob_item_given_norepeat / prob_item_given_repeat
+        
         Prob_Ratio=Like_Ratio*prior_ratio
         prob_repeat_given_item=1.0/(1.0+Prob_Ratio)
         #print raw_repeat,raw_norepeat, Ratio, prob_repeat_given_item
         return prob_repeat_given_item
     return bayes_classify
+  
     
 def validate_naive_bayes():
     offers=make_customer_offer_lookup().values()
@@ -141,12 +146,38 @@ def validate_naive_bayes():
     real_negative=len(index)-n_true
     false_positive_rate=false_pos/real_negative
     #integrate the ROC curve
-    AUROC=scipy.integrate.cumtrapz(recall,false_positive_rate)[-1]
+    AUROC=cumtrapz(recall,false_positive_rate)[-1]
     plt.plot(false_positive_rate,recall)
     plt.plot([0,1],[0,1],linestyle='--')
     plt.title('Naive Bayes AUROC: %0.4f'%AUROC)
     print "AUROC: %s"%AUROC
     return (prob,precision,recall,false_positive_rate,AUROC)
+
+def roc(prob_in,actual_in):
+    o=list(reversed(np.argsort(prob_in)))
+    prob=[prob_in[i] for i in o]
+    actual=[actual_in[i] for i in o]
+    
+    index=np.arange(len(prob))
+    true_pos=np.cumsum(actual)
+    #add 1 to below?
+    precision=true_pos/(index+1)
+    n_true=float(true_pos[-1])
+    recall=true_pos/n_true 
+    f_score=2*precision*recall/(precision+recall)       
+    false_pos=index-true_pos
+    real_negative=len(index)-n_true
+    false_positive_rate=false_pos/real_negative
+    #integrate the ROC curve
+    AUROC=scipy.integrate.cumtrapz(recall,false_positive_rate)[-1]
+    plt.plot(false_positive_rate,recall)
+    plt.ylim(0,1)
+    plt.xlim(0,1)
+    plt.plot([0,1],[0,1],linestyle='--')
+    plt.title('AUROC: %0.4f'%AUROC)
+    print "AUROC: %s"%AUROC
+    return (prob,precision,recall,false_positive_rate,AUROC)
+
 
 def run_naive_bayes_on_test_history(name='history_test'):
     BC=make_naive_bayes_classifier()
@@ -326,6 +357,8 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
     fout.close()
     print 'Done'
 
-
-
+def frac_dic():
+    d=stream_data('frac')
+    dic={i['id']:i for i in d}
+    return dic
 

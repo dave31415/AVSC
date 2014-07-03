@@ -114,6 +114,7 @@ score.kmeans<-function(k=60){
   data=dk$data
   km=dk$km
   clust=predict(km,data)
+
 }
 
 

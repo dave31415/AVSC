@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use('Agg') # Plots go to files not screen    
+#matplotlib.use('Agg') # Plots go to files not screen    
 
 from readers import PARS, make_item_category_company_brand,make_customer_offer_lookup
 from readers import data_files,stream_data
@@ -10,6 +10,7 @@ import mrec
 import matplotlib.pyplot as plt
 import csv
 from scipy.cluster.vq import kmeans,vq
+from readers import roc as roc_curve
 
 def make_mrec_outfile(infile,d,num_iters,reg):
     suffix="_mrec_d%s_iter%s_reg%0.4f.npz"%(d,num_iters,reg)
@@ -247,6 +248,10 @@ class mf_model:
         self.dict_user=dict(list(csv.reader(open(self.dictfile_user,'rU'))))
         self.dict_item=dict(list(csv.reader(open(self.dictfile_item,'rU'))))
         self.nbad=0
+        #kmeans stuff
+        self.k_default=75
+        self.alpha=2.0
+        self.mu=0.31
     
     def features(self,offer):
         bad=False
@@ -338,13 +343,26 @@ class mf_model:
     def add_features_to_both(self):
         self.add_features_to_files(name='history')
         self.add_features_to_files(name='history_test')
-    
-    def hello(self):
-        print "hello there"
 
-    def kmeans(self,name='history',k=35):
-        features=self.add_features_to_files(name=name,return_features=True)
-        print "Running kmeans"
+    def kmeans(self,k=None):
+        #think about whether whitening is needed
+        if k == None : 
+            k=self.k_default
+        self.k=k
+            
+        features_train=self.add_features_to_files(name='history',return_features=True)
+        features_test=self.add_features_to_files(name='history_test',return_features=True)
+        #combine them
+        n_train=features_train.shape[0]
+        n_test=features_test.shape[0]
+        n_combined=n_train+n_test
+        features=np.zeros(shape=(n_combined,self.model.d))
+        for i in xrange(n_train):
+            features[i]=features_train[i]
+        for i in xrange(n_test):
+            features[i+n_train]=features_test[i]
+            
+        print "Running kmeans with k=%s" % self.k
         centroids,_ = kmeans(features,k)
         # assign each sample to a cluster
         self.centroids=centroids
@@ -354,6 +372,105 @@ class mf_model:
     def kmeans_assign(self,features):
         idx,_ = vq(features,self.centroids)
         return idx
+        
+    def calibrate_kmeans(self):
+        features=self.add_features_to_files(name='history',return_features=True)
+        data=make_customer_offer_lookup(name='history').itervalues()
+        n_train=features.shape[0]
+        idx=self.kmeans_assign(features)
+        num_tot=np.zeros(n_train)
+        num_repeater=np.zeros(n_train)
+        for i in xrange(n_train):
+            num_tot[idx[i]]+=1.0
+            d=data.next()
+            if d['repeater']=='t':
+                num_repeater[idx[i]]+=1.0
+        #use additive (Laplace) smoothing
+        frac_repeater=(num_repeater+self.alpha)/(num_tot+self.alpha/self.mu)
+        kmeans_dic={}
+        
+        for i in xrange(self.k):
+            dic={'idx': i, 'num_train':num_tot[i],'num_train_repeat':num_repeater[i],
+                'frac_repeater':frac_repeater[i]}
+            kmeans_dic[i] = dic
+        self.kmeans_dic=kmeans_dic
+        
+        
+    def frac_repeater_idx(self,idx): 
+        return self.kmeans_dic[idx]['frac_repeater']
+
+    def score_offer(self,offer):
+        #compute features, not tested
+        features=self.features(offer)
+        #assign a kmeans cluster index
+        idx=self.kmeans_assign(features)
+        #look up fraction of repeaters (in train) for this cluster
+        frac=self.kmeans_dic[idx]['frac_repeater']
+        return frac,idx
+
+    def plot_fracs(self):
+        d=sorted(self.kmeans_dic.values(),key=lambda x : x['frac_repeater'])
+        frac=np.array([i['frac_repeater'] for i in d])
+        num=np.array([i['num_train'] for i in d])
+        num_repeat=np.array([i['num_train_repeat'] for i in d])
+        #calculate errors, find my formula from Catalina writeup which included Laplace term
+        print "cluster fraction  num_tot num_repeat"
+        for i in xrange(len(frac)):
+            print i,frac[i],num[i],num_repeat[i]
+        plt.plot(frac)
+        plt.show()
+        
+    def roc(self):
+        features=self.add_features_to_files(name='history',return_features=True)
+        data=make_customer_offer_lookup(name='history').itervalues()
+        n_train=features.shape[0]
+        idx=self.kmeans_assign(features)
+        frac=np.array([self.kmeans_dic[i]['frac_repeater'] for i in idx])
+        actual=np.array([d['repeater'] == 't' for d in data])
+        roc_curve(frac,actual)
+
+    def write_feature_files(self):
+        file_name='/Users/davej/data/AVSC/reduced.csv'
+        outfile_name=file_name.replace('.csv','_MF_kmeans.csv')
+        W=open(outfile_name,'w')
+        W.write("id,cluster,frac_repeater\n")
+    
+        for name in ['history','history_test']:    
+            data=make_customer_offer_lookup(name=name).itervalues()
+            features=self.add_features_to_files(name=name,return_features=True)
+            idx=self.kmeans_assign(features)
+            frac=[self.frac_repeater_idx(i) for i in idx] 
+            for d,i,f in zip(data,idx,frac):
+                id=d['id']
+                W.write("%s,%s,%s\n" % (id,i,f))
+    
+    def make_submission(self):
+        #got  0.51096 on first submission try
+        file_name='/Users/davej/data/AVSC/reduced.csv'
+        outfile_name=file_name.replace('.csv','_MF_kmeans_submission.csv')
+        W=open(outfile_name,'w')
+        W.write("id,repeatProbability\n")
+    
+        for name in ['history_test']:    
+            data=make_customer_offer_lookup(name=name).itervalues()
+            features=self.add_features_to_files(name=name,return_features=True)
+            idx=self.kmeans_assign(features)
+            frac=[self.frac_repeater_idx(i) for i in idx] 
+            for d,i,f in zip(data,idx,frac):
+                id=d['id']
+                W.write("%s,%s\n" % (id,f*100.0))
+    
+
+    def build(self):
+        print "Building kmeans and repeater calibration with k=%s, alpha=%s, mu=%s" % (self.k_default,self.alpha,self.mu)
+        self.kmeans()
+        self.calibrate_kmeans()  
+    
+    def doall(self):
+        self.build()
+        self.write_feature_files()
+        self.make_submission()
+        print 'did all'
 
 def test_mf_train():
     train=make_customer_offer_lookup(name='history')
