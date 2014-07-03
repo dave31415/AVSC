@@ -250,7 +250,7 @@ class mf_model:
         self.nbad=0
         #kmeans stuff
         self.k_default=75
-        self.alpha=2.0
+        self.alpha=5.0
         self.mu=0.31
     
     def features(self,offer):
