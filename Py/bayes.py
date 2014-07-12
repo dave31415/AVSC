@@ -11,9 +11,14 @@ class Node(defaultdict):
         self.dim=dim
         self.data=np.zeros(self.dim,dtype=np.int64)
         self.cache = None
+        self.alpha=10
+        self.prob=0.0
+        self.prob_raw=0.0
+        self.prior=0.3
+        
         super(Node, self).__init__(Node)
     def __repr__(self):
-        return "Node: data = %s, rollup_cache = %s" % (self.data,self.cache)
+        return "Node: data = %s, rollup = %s" % (self.data,self.cache)
         
     def rollup(self,use_cache=True):
         if use_cache and not self.cache == None:
@@ -30,7 +35,23 @@ class Node(defaultdict):
             res=roll+self.data
     
         self.cache=res
+        num=res[0]
+        num_true=res[1]
+        if num > 0 : 
+            self.prob_raw=num_true/num
+        else :
+            self.prob=0.0
         return res
+        
+    def regularize(self,prior):
+        num,num_true=self.rollup()
+        self.prob = (num_true+self.alpha) / (float(num)+self.alpha/prior)
+        if num > 0:
+            self.prob_raw = num_true / float(num)
+        
+        for node in self.itervalues():
+            #recurse down the tree
+            node.regularize(self.prob) 
 
 class BayesCube(Node):
     def __init__(self,hierarchy,target,target_true=1):
@@ -63,10 +84,12 @@ class BayesCube(Node):
                 node.data+=np.array([1,target_boolean])
             else :
                 self.bad_lines+=1    
-    
+        
+        roll=self.rollup()
         print 'done loading'
         print '%s lines' % nlines
         print '%s bad lines' % self.nbad     
+        print self
     
 def test_load():
     file="/Users/davej/data/AVSC/test_cube.csv"    
@@ -74,6 +97,7 @@ def test_load():
     target='repeater'
     cube=BayesCube(hierarchy,target,target_true='t')
     cube.loader(file)
+    cube.regularize(0.3)
     return cube
         
         
