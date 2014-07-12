@@ -250,10 +250,10 @@ class mf_model:
         self.nbad=0
         #kmeans stuff
         self.k_default=75
-        self.alpha=5.0
-        self.mu=0.31
+        self.alpha=10.0
+        self.mu=0.30
     
-    def features(self,offer):
+    def hyper_features(self,offer):
         bad=False
         user=offer['id']
         item=make_item_category_company_brand(offer)
@@ -281,6 +281,18 @@ class mf_model:
             v=np.zeros(self.model.d)
         #return the point-wise product NOT dot product
         return u*v
+        
+    def features(self,offer):
+        #return self.super_features(offer)
+        uv=self.hyper_features(offer)
+        return uv
+        
+    def super_features(self,offer):
+        u,v=self.hyper_features(offer)
+        prod=u*v
+        dot=prod.sum()
+        return np.array(list(u)+list(v)+list(prod)+[dot])
+        
 
     def score(self,offer):
         scores=[]
@@ -380,18 +392,22 @@ class mf_model:
         idx=self.kmeans_assign(features)
         num_tot=np.zeros(n_train)
         num_repeater=np.zeros(n_train)
+        num_repeater_random=np.zeros(n_train)
         for i in xrange(n_train):
             num_tot[idx[i]]+=1.0
             d=data.next()
             if d['repeater']=='t':
                 num_repeater[idx[i]]+=1.0
+            if np.random.random()< self.mu:
+                num_repeater_random[idx[i]]+=1.0
         #use additive (Laplace) smoothing
         frac_repeater=(num_repeater+self.alpha)/(num_tot+self.alpha/self.mu)
+        frac_repeater_random=(num_repeater_random+self.alpha)/(num_tot+self.alpha/self.mu)
         kmeans_dic={}
         
         for i in xrange(self.k):
             dic={'idx': i, 'num_train':num_tot[i],'num_train_repeat':num_repeater[i],
-                'frac_repeater':frac_repeater[i]}
+                'frac_repeater':frac_repeater[i],'frac_repeater_random':frac_repeater_random[i]}
             kmeans_dic[i] = dic
         self.kmeans_dic=kmeans_dic
         
@@ -408,9 +424,15 @@ class mf_model:
         frac=self.kmeans_dic[idx]['frac_repeater']
         return frac,idx
 
-    def plot_fracs(self):
-        d=sorted(self.kmeans_dic.values(),key=lambda x : x['frac_repeater'])
-        frac=np.array([i['frac_repeater'] for i in d])
+    def plot_fracs(self,rand=False):
+        
+        if not rand:
+            d=sorted(self.kmeans_dic.values(),key=lambda x : x['frac_repeater'])
+            frac=np.array([i['frac_repeater'] for i in d])
+        else:
+            d=sorted(self.kmeans_dic.values(),key=lambda x : x['frac_repeater_random'])
+            frac=np.array([i['frac_repeater_random'] for i in d])
+        
         num=np.array([i['num_train'] for i in d])
         num_repeat=np.array([i['num_train_repeat'] for i in d])
         #calculate errors, find my formula from Catalina writeup which included Laplace term
@@ -420,12 +442,16 @@ class mf_model:
         plt.plot(frac)
         plt.show()
         
-    def roc(self):
+    def roc(self,rand=False):
         features=self.add_features_to_files(name='history',return_features=True)
         data=make_customer_offer_lookup(name='history').itervalues()
         n_train=features.shape[0]
         idx=self.kmeans_assign(features)
-        frac=np.array([self.kmeans_dic[i]['frac_repeater'] for i in idx])
+        if not rand:
+            frac=np.array([self.kmeans_dic[i]['frac_repeater'] for i in idx])
+        else :
+            frac=np.array([self.kmeans_dic[i]['frac_repeater_random'] for i in idx])
+        
         actual=np.array([d['repeater'] == 't' for d in data])
         roc_curve(frac,actual)
 

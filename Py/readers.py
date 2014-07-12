@@ -3,11 +3,13 @@
 import os, csv, json
 import pandas as pd
 import random
-from collections import Counter
+from collections import Counter,defaultdict
 import numpy as np
 import scipy
 from matplotlib import pylab as plt
 from scipy.integrate import cumtrapz
+from datetime import datetime, timedelta, date
+from math import sqrt
 
 #Read json data from Parameter file, for now, just need data_dir
 JSONDC=json.JSONDecoder()
@@ -303,7 +305,7 @@ def scale_number(x,cutoff=-100):
     return np.log(1.0+xx/beta)/np.log(1.0+1.0/beta)
         
 def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
-        user_tag='id',item_func=make_item_category_company_brand):
+        user_tag='id',item_func=make_item_category_company_brand,cutoff=1.01):
     '''Take a csv file with columns and pick out the users and items and convert them to unique numbers'''
     outfile_name=file_name.replace('.csv','_row_col_num.csv')
     dictfile_user=file_name.replace('.csv','_dict_user.csv')
@@ -353,7 +355,8 @@ def numberize(file_name='/Users/davej/data/AVSC/reduced.csv',
         user=str(key[0])
         item=str(key[1]) 
         outline=','.join([user,item,str(scaled_count)])+'\n'
-        fout.write(outline)   
+        if int(count) == 1 :
+            fout.write(outline)   
     fout.close()
     print 'Done'
 
@@ -361,4 +364,56 @@ def frac_dic():
     d=stream_data('frac')
     dic={i['id']:i for i in d}
     return dic
+
+def mean(x):
+    return sum(x)/float(len(x))
+
+def sigma(x):
+    xx=np.array(x)
+    return xx.std()  
+
+def date_holes(num=7):
+    #collect shopping trips by id
+    date_format = "%Y-%m-%d"
+    long_gap=33
+    data={}
+    bad_dates=set()
+    s=stream_data('transactions',split_num=num)
+    for line in s:
+        id=line['id']
+        date=line['date']
+        if len(date) == 10:
+            if id not in data: 
+                data[id]=set(date)
+            else:
+                data[id].add(date)
+        else :
+            bad_dates.add(date)
+    print "%s bad dates" % len(bad_dates)
+    data_sort={}
+    gaps={}
+    
+    for id,date_set in data.iteritems():
+        dates_sorted=sorted(list(date_set))
+        data_sort[id]=dates_sorted
+        gap=[]
+        date_last=None
+        ntrips=0
+        nlong_gaps=0
+        for i,date_s in enumerate(dates_sorted):
+            ntrips+=1
+            try:
+                date=datetime.strptime(date_s,date_format)
+                if not date_last == None:
+                    diff=(date-date_last).days
+                    if diff > long_gap: nlong_gaps+=1
+                    gap.append(diff)
+                date_last=date
+            except:
+                pass
+            if len(gap) > 1:
+                prob=nlong_gaps/float(ntrips)
+                gaps[id]=(mean(gap),sigma(gap),min(gap),max(gap),ntrips,nlong_gaps,prob)
+    return gaps
+    
 
